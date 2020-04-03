@@ -7,6 +7,4 @@
 * Fill out https://docs.google.com/document/d/1iMTfkwgNFzNuOY2dCiqhDacfpsjxAI-0F6Ql857YAuU/edit
 
 ## TODO
-* Sign everyones form for independent study, senior project, etc
-* Determine a meeting time next week
 * Schedule an introductory meeting with Amy Langville and Tim Chartier
