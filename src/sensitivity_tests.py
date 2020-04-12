@@ -13,10 +13,11 @@ class ProblemInstance:
         pass
     
     def get_sensitivity(self, rankingAlg):
-        # TODO: get perfect ranking
+        # TODO @Ethan: get perfect ranking
         # TODO: for N
-            # TODO: generate and apply noise
-            # TODO: get ranking of distorted D
+            # TODO @Marisa: generate and apply noise
+            # TODO @Jackson: run hillside count to get k,p
+            # TODO @Ethan: get ranking of distorted D
             # TODO: calculate tau
         # TODO: produce summary of tau
         pass
@@ -39,3 +40,8 @@ class DataSource:
     def init_D(self):
         # Child classes should return numpy array
         raise NotImplemented("Don't use the generic DataSource class")
+        
+class RankingAlgorithm:
+    def rank(D):
+        # Child classes should return numpy array of ranking vector
+        raise NotImplemented("Don't use the generic RankingAlgorithm class")
