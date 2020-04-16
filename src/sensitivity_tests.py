@@ -18,6 +18,7 @@ class ProblemInstance:
         pass
     
     def get_sensitivity(self, rankingAlg):
+<<<<<<< HEAD
         # TODO @Ethan: get perfect ranking
         perfectRanking = rankingAlg.rank(self.dataSource)
         # TODO: for N
@@ -25,6 +26,12 @@ class ProblemInstance:
             # TODO @Jackson: run hillside count to get k,p
             #actualRanking = rankingAlg.rank(Marisa's Matrix)
             # TODO @Ethan: get ranking of distorted D
+=======
+        # TODO: get perfect ranking
+        # TODO: for N
+            # TODO: generate and apply noise
+            # TODO: get ranking of distorted D
+>>>>>>> 6b8fa178b99e7da116c2ee8a4d009fe2970d1474
             # TODO: calculate tau
         # TODO: produce summary of tau
         pass
@@ -40,12 +47,19 @@ class PercentageFlipNoise:
         self.noisePercentage = noisePercentage
     
     def apply_noise(self, D):
-        # TODO: flip noisePercentage% of relations
-        raise NotImplemented("Not Implemented yet")
+        n = len(D)
+        num_flips = (np.square(n) - n) * self.noisePercentage
+        unique_elems = set()
+        for flip in range(int(num_flips)):
+            i, j = random.sample(range(n), 2)
+            while ((i, j) in unique_elems): i, j = random.sample(range(n), 2)
+            unique_elems.add((i, j))
+            D[i][j] = 1 - D[i][j]
 
 class DataSource:
     def init_D(self):
         # Child classes should return numpy array
+<<<<<<< HEAD
         raise NotImplemented("Don't use the generic DataSource class")
         
 class RankingAlgorithm:
@@ -119,3 +133,6 @@ def main():
     
 #if __name__ == "__main__":
 #   main()
+=======
+        raise NotImplemented("Don't use the generic DataSource class")
+>>>>>>> 6b8fa178b99e7da116c2ee8a4d009fe2970d1474
