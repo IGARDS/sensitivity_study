@@ -32,8 +32,14 @@ class PercentageFlipNoise:
         self.noisePercentage = noisePercentage
     
     def apply_noise(self, D):
-        # TODO: flip noisePercentage% of relations
-        raise NotImplemented("Not Implemented yet")
+        n = len(D)
+        num_flips = (np.square(n) - n) * self.noisePercentage
+        unique_coordinates = set()
+        for flip in range(int(num_flips)):
+            i, j = random.sample(range(n), 2)
+            while ((i, j) in unique_coordinates): i, j = random.sample(range(n), 2)
+            flip_coords.add((i, j))
+            D[i][j] = 1 - D[i][j]
 
 class DataSource:
     def init_D(self):
