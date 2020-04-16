@@ -1,3 +1,8 @@
+import numpy as np
+import sys
+sys.path.insert(0, "/disk/home/ubuntu/rankability_toolbox/")
+from pyrankability import common as prcommon, lop, bilp, pruning_paper
+
 class ProblemInstance:
     
     def __init__(self, dataSource, noiseGenerator):
@@ -14,9 +19,11 @@ class ProblemInstance:
     
     def get_sensitivity(self, rankingAlg):
         # TODO @Ethan: get perfect ranking
+        perfectRanking = rankingAlg.rank(self.dataSource)
         # TODO: for N
             # TODO @Marisa: generate and apply noise
             # TODO @Jackson: run hillside count to get k,p
+            #actualRanking = rankingAlg.rank(Marisa's Matrix)
             # TODO @Ethan: get ranking of distorted D
             # TODO: calculate tau
         # TODO: produce summary of tau
@@ -42,6 +49,73 @@ class DataSource:
         raise NotImplemented("Don't use the generic DataSource class")
         
 class RankingAlgorithm:
+        
     def rank(D):
         # Child classes should return numpy array of ranking vector
         raise NotImplemented("Don't use the generic RankingAlgorithm class")
+        
+class LOPRankingAlgorithm(RankingAlgorithm):
+    def rank(self, D):
+        # Child classes should return numpy array of ranking vector
+        #lop.bilp(D) returns an odd dominance graph. Question for Paul I suppose.
+        #Also, does pyrankability even have an LOP ranking alg? Question two.
+        #print(D.shape)
+        return np.arange(1,D.shape[1]) #lop.bilp(D)
+    
+class ColleyRankingAlgorithm(RankingAlgorithm):
+    def rank(self, D):
+        # Child classes should return numpy array of ranking vector
+        #need to convert dominance graph to colley format
+        wins = [sum(D[i]) for i in range(0,D.shape[0])]
+        losses = [sum(np.transpose(D)[i]) for i in range(0,D.shape[0])]
+        #print(wins)
+        #print(losses)
+        totalevents = [wins[i] + losses[i] for i in range(0,D.shape[0])]
+        #print(totalevents)
+        b = [1 + (wins[i] - losses[i])/2 for i in range(0,D.shape[0])]
+        #print(b)
+        #print(D.shape)
+        C = np.zeros(D.shape)
+        for i in range(0,D.shape[0]):
+            C[i][i] = 2 + totalevents[i]
+        #print(C)
+        for x in range(D.shape[0]):
+            for y in range(D.shape[1]):
+                if x != y:
+                    C[x][y] = (D[x][y] + D[y][x]) * -1
+        #print(C)
+        r = np.linalg.solve(C, b)
+        r = sorted([(r[i - 1], i) for i in range(1, D.shape[0] + 1)])
+        #print(r)
+        #raise NotImplemented("Colley Ranking Algorithm in progress")
+        retvec = [r[i][1] for i in range(len(r))]
+        #print(retvec)
+        return retvec
+    
+    
+def main():
+    cra = ColleyRankingAlgorithm()
+    fivefive = np.zeros((5,5))
+    est = np.array([[0,1,0,0,0],
+                    [0,0,1,0,0],
+                    [0,0,0,1,0],
+                    [0,0,0,0,1],
+                    [0,0,0,0,0]])
+    fivegood = np.array([[0,1,0,0,0],
+                        [0,0,1,0,0],
+                        [0,0,0,1,0],
+                        [0,0,0,0,1],
+                        [1,1,1,1,0]])
+    completedominance = np.array([[0,1,1,1,1],
+                                [0,0,1,1,1],
+                                [0,0,0,1,1],
+                                [0,0,0,0,1],
+                                [0,0,0,0,0]])
+    worstcase = np.zeros((5,5))
+    print("Colley test:" + str(cra.rank(est)))
+    print("Colley test fivegood:" + str(cra.rank(fivegood)))
+    print("Colley test perfect season:" + str(cra.rank(completedominance)))
+    print("Colley test worst case:" + str(cra.rank(worstcase)))
+    
+#if __name__ == "__main__":
+#   main()
