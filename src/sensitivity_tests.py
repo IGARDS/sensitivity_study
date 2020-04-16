@@ -18,7 +18,6 @@ class ProblemInstance:
         pass
     
     def get_sensitivity(self, rankingAlg):
-<<<<<<< HEAD
         # TODO @Ethan: get perfect ranking
         perfectRanking = rankingAlg.rank(self.dataSource)
         # TODO: for N
@@ -26,12 +25,10 @@ class ProblemInstance:
             # TODO @Jackson: run hillside count to get k,p
             #actualRanking = rankingAlg.rank(Marisa's Matrix)
             # TODO @Ethan: get ranking of distorted D
-=======
         # TODO: get perfect ranking
         # TODO: for N
             # TODO: generate and apply noise
             # TODO: get ranking of distorted D
->>>>>>> 6b8fa178b99e7da116c2ee8a4d009fe2970d1474
             # TODO: calculate tau
         # TODO: produce summary of tau
         pass
@@ -59,7 +56,6 @@ class PercentageFlipNoise:
 class DataSource:
     def init_D(self):
         # Child classes should return numpy array
-<<<<<<< HEAD
         raise NotImplemented("Don't use the generic DataSource class")
         
 class RankingAlgorithm:
@@ -82,28 +78,18 @@ class ColleyRankingAlgorithm(RankingAlgorithm):
         #need to convert dominance graph to colley format
         wins = [sum(D[i]) for i in range(0,D.shape[0])]
         losses = [sum(np.transpose(D)[i]) for i in range(0,D.shape[0])]
-        #print(wins)
-        #print(losses)
         totalevents = [wins[i] + losses[i] for i in range(0,D.shape[0])]
-        #print(totalevents)
         b = [1 + (wins[i] - losses[i])/2 for i in range(0,D.shape[0])]
-        #print(b)
-        #print(D.shape)
         C = np.zeros(D.shape)
         for i in range(0,D.shape[0]):
             C[i][i] = 2 + totalevents[i]
-        #print(C)
         for x in range(D.shape[0]):
             for y in range(D.shape[1]):
                 if x != y:
                     C[x][y] = (D[x][y] + D[y][x]) * -1
-        #print(C)
         r = np.linalg.solve(C, b)
         r = sorted([(r[i - 1], i) for i in range(1, D.shape[0] + 1)])
-        #print(r)
-        #raise NotImplemented("Colley Ranking Algorithm in progress")
         retvec = [r[i][1] for i in range(len(r))]
-        #print(retvec)
         return retvec
     
     
@@ -133,6 +119,3 @@ def main():
     
 #if __name__ == "__main__":
 #   main()
-=======
-        raise NotImplemented("Don't use the generic DataSource class")
->>>>>>> 6b8fa178b99e7da116c2ee8a4d009fe2970d1474
