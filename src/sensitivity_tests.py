@@ -1,5 +1,6 @@
 import numpy as np
 import sys
+import random
 sys.path.insert(0, "/disk/home/ubuntu/rankability_toolbox/")
 from pyrankability import common as prcommon, lop, bilp, pruning_paper
 
@@ -92,9 +93,32 @@ class ColleyRankingAlgorithm(RankingAlgorithm):
         retvec = [r[i][1] for i in range(len(r))]
         return retvec
     
+class MasseyRankingAlgorithm(RankingAlgorithm):
+    def rank(self, D):
+        # Child classes should return numpy array of ranking vector
+        #need to convert dominance graph to colley format
+        wins = [sum(D[i]) for i in range(0,D.shape[0])]
+        losses = [sum(np.transpose(D)[i]) for i in range(0,D.shape[0])]
+        totalevents = [wins[i] + losses[i] for i in range(0,D.shape[0])]
+        b = [1 + (wins[i] - losses[i])/2 for i in range(0,D.shape[0])]
+        C = np.zeros(D.shape)
+        for i in range(0,D.shape[0]):
+            C[i][i] = totalevents[i]
+        for x in range(D.shape[0]):
+            for y in range(D.shape[1]):
+                if x != y:
+                    C[x][y] = (D[x][y] + D[y][x]) * -1
+        C[D.shape[0] - 1] = np.ones(D.shape[0])
+        b[D.shape[0] - 1] = 0
+        r = np.linalg.solve(C, b)
+        r = sorted([(r[i - 1], i) for i in range(1, D.shape[0] + 1)])
+        retvec = [r[i][1] for i in range(len(r))]
+        return retvec
+    
     
 def main():
     cra = ColleyRankingAlgorithm()
+    mra = MasseyRankingAlgorithm()
     fivefive = np.zeros((5,5))
     est = np.array([[0,1,0,0,0],
                     [0,0,1,0,0],
@@ -116,6 +140,9 @@ def main():
     print("Colley test fivegood:" + str(cra.rank(fivegood)))
     print("Colley test perfect season:" + str(cra.rank(completedominance)))
     print("Colley test worst case:" + str(cra.rank(worstcase)))
+    print("Massey test:" + str(mra.rank(est)))
+    print("Massey test perfect season:" + str(mra.rank(completedominance)))
+    print("The Massey method does not work on the worst case")
     
-#if __name__ == "__main__":
-#   main()
+if __name__ == "__main__":
+   main()
