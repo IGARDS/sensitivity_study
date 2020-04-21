@@ -115,6 +115,7 @@ class MasseyRankingAlgorithm(RankingAlgorithm):
         retvec = [r[i][1] for i in range(len(r))]
         return retvec
     
+class MarkovChainRankingAlgorithm
     
 def main():
     cra = ColleyRankingAlgorithm()
@@ -135,14 +136,19 @@ def main():
                                 [0,0,0,1,1],
                                 [0,0,0,0,1],
                                 [0,0,0,0,0]])
+    completedominanceweight = np.array([[0,5,5,5,5],
+                                        [0,0,400,100,100],
+                                        [0,0,0,1,1],
+                                        [0,0,0,0,1],
+                                        [0,0,0,0,0]])
     worstcase = np.zeros((5,5))
     print("Colley test:" + str(cra.rank(est)))
     print("Colley test fivegood:" + str(cra.rank(fivegood)))
     print("Colley test perfect season:" + str(cra.rank(completedominance)))
     print("Colley test worst case:" + str(cra.rank(worstcase)))
     print("Massey test:" + str(mra.rank(est)))
-    print("Massey test perfect season:" + str(mra.rank(completedominance)))
+    print("Massey test perfect season weighted:" + str(mra.rank(completedominanceweight)))
     print("The Massey method does not work on the worst case")
     
-if __name__ == "__main__":
-   main()
+#if __name__ == "__main__":
+#   main()
