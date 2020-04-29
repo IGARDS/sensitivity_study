@@ -180,8 +180,26 @@ class MasseyRankingAlgorithm(RankingAlgorithm):
         retvec = [r[i][1] for i in range(len(r))]
         return retvec
     
-class MarkovChainRankingAlgorithm:
-    pass
+class MarkovChainRankingAlgorithm(RankingAlgorithm):
+    def rank(self, D):
+        V = np.transpose(D.astype(float))
+        wins = [sum(D[i]) for i in range(0,D.shape[0])]
+        losses = [sum(np.transpose(D)[i]) for i in range(0,D.shape[0])]
+        totalevents = [wins[i] + losses[i] for i in range(0,D.shape[0])]
+        print("totalevents: ", totalevents)
+        maxevents = max(totalevents)
+        print(V)
+        for i in range(V.shape[0]):
+            if sum(V[i]) != 0:
+                V[i] = np.divide(V[i], sum(V[i]))
+                V[i][i] = maxevents - sum(V[i])
+                V[i] = np.divide(V[i], maxevents)
+        print(V)
+        eigenvals, eigenvecs = np.linalg.eig(V)
+        print(eigenvals)
+        print(eigenvecs)
+        indiciesreverse = eigenvals.argsort()[::-1]
+        print(eigenvecs[indiciesreverse[0]])
     
 def main():
     cra = ColleyRankingAlgorithm()
