@@ -1,8 +1,14 @@
 import numpy as np
+import math
 import sys
 import random
-sys.path.insert(0, "/disk/home/ubuntu/rankability_toolbox/")
-from pyrankability import common as prcommon, lop, bilp, pruning_paper
+# sys.path.insert(0, "/disk/home/ubuntu/rankability_toolbox/")
+sys.path.append("/home/jwaschur/rankability_toolbox")
+import pyrankability
+from scipy import stats
+from tqdm import tqdm
+
+######## PROBLEM INSTANCE ########
 
 class ProblemInstance:
     
@@ -10,30 +16,70 @@ class ProblemInstance:
         self.dataSource = dataSource
         self.noiseGenerator = noiseGenerator
     
-    def init_D(self):
-        # TODO: get data from datasource
-        pass
-    
-    def get_ranking(self):
-        # returns ranking and tau
-        pass
-    
-    def get_sensitivity(self, rankingAlg):
-        # TODO @Ethan: get perfect ranking
-        perfectRanking = rankingAlg.rank(self.dataSource)
-        # TODO: for N
-            # TODO @Marisa: generate and apply noise
-            # TODO @Jackson: run hillside count to get k,p
-            #actualRanking = rankingAlg.rank(Marisa's Matrix)
-            # TODO @Ethan: get ranking of distorted D
-        # TODO: get perfect ranking
-        # TODO: for N
-            # TODO: generate and apply noise
-            # TODO: get ranking of distorted D
-            # TODO: calculate tau
-        # TODO: produce summary of tau
-        pass
+    def get_sensitivity(self, rankingAlg, rankability_metrics, n_trials=100, progress_bar=True):
+        # Load in the initial D matrix and get a ranking without noise
+        D = self.dataSource.init_D()
+        perfect_ranking = rankingAlg.rank(D)
+        
+        # Get P of original D matrix using most efficient algorithm
+        print(D)
+        k, details = pyrankability.lop.lp(D)
+        print(k)
+        P, info = pyrankability.lop.find_P_from_x(D, k, details)
+        
+        # Compute each considered rankability metric
+        rs = [metric.compute(k, P) for metric in rankability_metrics]
+        
+        # Setup the progress bar if needed
+        if progress_bar:
+            range_iter = tqdm(range(n_trials), ascii=True)
+        else:
+            range_iter = range(n_trials)
+        
+        taus = []
+        for trial_index in range_iter:
+            D_noisy = self.noiseGenerator.apply_noise(D)
+            noisy_ranking = rankingAlg.rank(D_noisy)
+            tau, pval = stats.kendalltau(perfect_ranking, noisy_ranking)
+            taus.append(tau)
+        
+        return rs, taus
 
+    
+######## RANKABILITY METRICS ########
+    
+class RankabilityMetric:
+    def compute(self, k, P):
+        # Child classes should compute their rankability metric from k and P
+        raise NotImplemented("Don't use the generic NoiseGenerator class")
+
+class RatioToMaxMetric(RankabilityMetric):
+    def compute(self, k, P):
+        n = len(P[0])
+        print(k, P)
+        return 1.0 - (k*len(P) / ((n**2 - n)/2*math.factorial(n)))
+    
+class PDiversityMetric(RankabilityMetric):
+    
+    # This function found at: https://stackoverflow.com/a/48916127
+    def kendall_w(self, expt_ratings):
+        print(expt_ratings)
+        if expt_ratings.ndim!=2:
+            raise 'ratings matrix must be 2-dimensional'
+        m = expt_ratings.shape[0] # number of raters
+        n = expt_ratings.shape[1] # number of items
+        denom = m**2*(n**3-n)
+        rating_sums = np.sum(expt_ratings, axis=0)
+        S = n*np.var(rating_sums)
+        return 12*S/denom
+    
+    def compute(self, k, P):
+        n = len(P[0])
+        return 1 - ((k / ((n*n - n)/2)) * (1-self.kendall_w(np.array(P))))
+
+
+######## NOISE GENERATORS ########
+    
 class NoiseGenerator:
     def apply_noise(self, D):
         # Child classes should return numpy array of D_tilde
@@ -45,20 +91,39 @@ class PercentageFlipNoise:
         self.noisePercentage = noisePercentage
     
     def apply_noise(self, D):
-        n = len(D)
+        D_noisy = np.copy(D)
+        n = len(D_noisy)
         num_flips = (np.square(n) - n) * self.noisePercentage
         unique_elems = set()
         for flip in range(int(num_flips)):
             i, j = random.sample(range(n), 2)
             while ((i, j) in unique_elems): i, j = random.sample(range(n), 2)
             unique_elems.add((i, j))
-            D[i][j] = 1 - D[i][j]
+            D_noisy[i][j] = 1 - D_noisy[i][j]
+        return D_noisy
 
+    
+######## DATA SOURCES ########
+    
 class DataSource:
     def init_D(self):
         # Child classes should return numpy array
         raise NotImplemented("Don't use the generic DataSource class")
-        
+
+class PerfectBinarySource(DataSource):
+    def __init__(self, n):
+        self.n = n
+    
+    def init_D(self):
+        D = np.full(shape=(self.n,self.n), fill_value=0, dtype=int)
+        for i in range(self.n):
+            for j in range(i+1, self.n):
+                    D[j,i] = (self.n-i) + j
+        return D        
+
+
+######## RANKING ALGORITHMS ########
+
 class RankingAlgorithm:
         
     def rank(D):
@@ -67,11 +132,11 @@ class RankingAlgorithm:
         
 class LOPRankingAlgorithm(RankingAlgorithm):
     def rank(self, D):
-        # Child classes should return numpy array of ranking vector
-        #lop.bilp(D) returns an odd dominance graph. Question for Paul I suppose.
-        #Also, does pyrankability even have an LOP ranking alg? Question two.
-        #print(D.shape)
-        return np.arange(1,D.shape[1]) #lop.bilp(D)
+        k, details = pyrankability.lop.lp(D)
+        P, info = pyrankability.lop.find_P_from_x(D, k, details)
+        # This could return the full P set or randomly sample from it rather
+        # than reporting the first it finds.
+        return P[0]
     
 class ColleyRankingAlgorithm(RankingAlgorithm):
     def rank(self, D):
@@ -115,7 +180,8 @@ class MasseyRankingAlgorithm(RankingAlgorithm):
         retvec = [r[i][1] for i in range(len(r))]
         return retvec
     
-class MarkovChainRankingAlgorithm
+class MarkovChainRankingAlgorithm:
+    pass
     
 def main():
     cra = ColleyRankingAlgorithm()
