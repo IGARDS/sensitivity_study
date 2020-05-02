@@ -2,7 +2,6 @@ import numpy as np
 import math
 import sys
 import random
-# sys.path.insert(0, "/disk/home/ubuntu/rankability_toolbox/")
 sys.path.append("/home/jwaschur/rankability_toolbox")
 import pyrankability
 from scipy import stats
@@ -22,13 +21,10 @@ class ProblemInstance:
         perfect_ranking = rankingAlg.rank(D)
         
         # Get P of original D matrix using most efficient algorithm
-        print(D)
-        k, details = pyrankability.lop.lp(D)
-        print(k)
-        P, info = pyrankability.lop.find_P_from_x(D, k, details)
+        k, details = pyrankability.hillside.bilp(D, max_solutions=1, num_random_restarts=10)
         
         # Compute each considered rankability metric
-        rs = [metric.compute(k, P) for metric in rankability_metrics]
+        rs = [metric.compute(k, details) for metric in rankability_metrics]
         
         # Setup the progress bar if needed
         if progress_bar:
@@ -49,21 +45,20 @@ class ProblemInstance:
 ######## RANKABILITY METRICS ########
     
 class RankabilityMetric:
-    def compute(self, k, P):
+    def compute(self, k, details):
         # Child classes should compute their rankability metric from k and P
         raise NotImplemented("Don't use the generic NoiseGenerator class")
 
 class RatioToMaxMetric(RankabilityMetric):
-    def compute(self, k, P):
+    def compute(self, k, details):
+        P = details["P"]
         n = len(P[0])
-        print(k, P)
         return 1.0 - (k*len(P) / ((n**2 - n)/2*math.factorial(n)))
     
 class PDiversityMetric(RankabilityMetric):
     
     # This function found at: https://stackoverflow.com/a/48916127
     def kendall_w(self, expt_ratings):
-        print(expt_ratings)
         if expt_ratings.ndim!=2:
             raise 'ratings matrix must be 2-dimensional'
         m = expt_ratings.shape[0] # number of raters
@@ -73,7 +68,8 @@ class PDiversityMetric(RankabilityMetric):
         S = n*np.var(rating_sums)
         return 12*S/denom
     
-    def compute(self, k, P):
+    def compute(self, k, details):
+        P = details["P"]
         n = len(P[0])
         return 1 - ((k / ((n*n - n)/2)) * (1-self.kendall_w(np.array(P))))
 
@@ -115,10 +111,8 @@ class PerfectBinarySource(DataSource):
         self.n = n
     
     def init_D(self):
-        D = np.full(shape=(self.n,self.n), fill_value=0, dtype=int)
-        for i in range(self.n):
-            for j in range(i+1, self.n):
-                    D[j,i] = (self.n-i) + j
+        D = np.zeros((self.n,self.n), dtype=int)
+        D[np.triu_indices(self.n,1)] = 1
         return D        
 
 
@@ -132,11 +126,10 @@ class RankingAlgorithm:
         
 class LOPRankingAlgorithm(RankingAlgorithm):
     def rank(self, D):
-        k, details = pyrankability.lop.lp(D)
-        P, info = pyrankability.lop.find_P_from_x(D, k, details)
+        k, details = pyrankability.hillside.bilp(D,max_solutions=1)
         # This could return the full P set or randomly sample from it rather
         # than reporting the first it finds.
-        return P[0]
+        return details["P"][0]
     
 class ColleyRankingAlgorithm(RankingAlgorithm):
     def rank(self, D):
