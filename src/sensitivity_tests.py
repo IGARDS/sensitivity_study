@@ -21,7 +21,7 @@ class ProblemInstance:
         perfect_ranking = rankingAlg.rank(D)
         
         # Get P of original D matrix using most efficient algorithm
-        k, details = pyrankability.hillside.bilp(D, max_solutions=1, num_random_restarts=10)
+        k, details = pyrankability.hillside.bilp(D, num_random_restarts=10)
         
         # Compute each considered rankability metric
         rs = [metric.compute(k, details) for metric in rankability_metrics]
@@ -169,7 +169,7 @@ class SwapNoise(NoiseGenerator):
         num_swaps = int((n*n - n)/2 * self.noisePercentage)
         if self.noisePercentage > 0.5:
             D_noisy = D_noisy.T
-            num_swaps = (n*n - n)/2 - num_swaps
+            num_swaps = int((n*n - n)/2 - num_swaps)
         # Get indices of upper-triangular elements
         i_arr, j_arr = np.triu_indices(n,1)
         num_offdiag = len(i_arr)
@@ -331,7 +331,7 @@ class RankingAlgorithm:
 class LOPRankingAlgorithm(RankingAlgorithm):
     
     def rank(self, D):
-        k, details = pyrankability.hillside.bilp(D,max_solutions=1)
+        k, details = pyrankability.hillside.bilp(D)
         # This could return the full P set or randomly sample from it rather
         # than reporting the first it finds.
         return details["P"][0]
