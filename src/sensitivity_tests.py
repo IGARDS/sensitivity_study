@@ -110,32 +110,20 @@ class KendallWMetric(RankabilityMetric):
 
 
 class L2DifferenceMetric(RankabilityMetric):
-    #RankVectors should be an array of ranking vectors
+    
     def compute(self, k, details):
         P = details["P"]
         p = len(P)
-        #NTS: possible to be more efficient here 
-        #print(list(itertools.combinations(P, 2)))
-        pair = max(
-            list(itertools.combinations(P, 2)),
-            key=lambda x: np.linalg.norm(np.array(x[0]) - np.array(x[1]))
-        )
+        n = len(P[0])
+        max_dist = 0.0
+        for r1 in range(p):
+            for r2 in range(r1, p):
+                dist = np.linalg.norm(np.array(P[r1]) - np.array(P[r2]))
+                if dist > max_dist:
+                    max_dist = dist
         
-        return np.linalg.norm(np.array(pair[0]) - np.array(pair[1]))/np.linalg.norm(np.arange(0,p) - np.arange(p - 1, -1, -1))
+        return 1.0 - (k / ((n*n - n)/2) * (1.0 - (max_dist / np.sqrt((p / 3) * (p**2 - 1))))
     
-    # just in case something broke in translation
-    def MaxL2Difference(self, RankVectors):
-        n = len(RankVectors[0])
-        #NTS: possible to be more efficient here 
-        #print(list(itertools.combinations(RankVectors, 2)))
-        pair = max(list(itertools.combinations(RankVectors, 2)), key=lambda x: np.linalg.norm(np.array(x[0]) - np.array(x[1])))
-        return np.linalg.norm(np.array(pair[0]) - np.array(pair[1]))/np.linalg.norm(np.arange(0,n) - np.arange(n - 1, -1, -1))
-
-class PMaxL2DifferenceMetric(RankabilityMetric):
-    def MaxL2Difference(self, RankVectors):
-        #k, details = pyrankability.hillside.bilp_two_most_distant(RankVectors)
-        #return math.sqrt(np.dot(np.array(details["perm_x"]) - np.array(details["perm_y"]), np.array(details["perm_x"]) - np.array(details["perm_y"])))/len(RankVectors)
-        pass
 
 class MeanTauMetric(RankabilityMetric):
     # Two similar statistics exist for the use of mean tau
@@ -184,7 +172,7 @@ class MeanTauMetric(RankabilityMetric):
                     u += stats.kendalltau(P[r1], P[r2])[0]
             u /= (p*(p-1)/2)
         n = len(P[0])
-        return 1 - (k / ((n*n - n)/2) * (1.0 - self.get_W(p, u))) # should be *(1-W)?
+        return 1 - (k / ((n*n - n)/2) * (1.0 - self.get_W(p, u)))
         
 
 ######## NOISE GENERATORS ########
