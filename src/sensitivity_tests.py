@@ -111,6 +111,19 @@ class KendallWMetric(RankabilityMetric):
 
 class L2DifferenceMetric(RankabilityMetric):
     #RankVectors should be an array of ranking vectors
+    def compute(self, k, details):
+        P = details["P"]
+        p = len(P)
+        #NTS: possible to be more efficient here 
+        #print(list(itertools.combinations(P, 2)))
+        pair = max(
+            list(itertools.combinations(P, 2)),
+            key=lambda x: np.linalg.norm(np.array(x[0]) - np.array(x[1]))
+        )
+        
+        return np.linalg.norm(np.array(pair[0]) - np.array(pair[1]))/np.linalg.norm(np.arange(0,p) - np.arange(p - 1, -1, -1))
+    
+    # just in case something broke in translation
     def MaxL2Difference(self, RankVectors):
         n = len(RankVectors[0])
         #NTS: possible to be more efficient here 
@@ -123,20 +136,6 @@ class PMaxL2DifferenceMetric(RankabilityMetric):
         #k, details = pyrankability.hillside.bilp_two_most_distant(RankVectors)
         #return math.sqrt(np.dot(np.array(details["perm_x"]) - np.array(details["perm_y"]), np.array(details["perm_x"]) - np.array(details["perm_y"])))/len(RankVectors)
         pass
-    
-'''    
-    def compute(self, k, details):
-        P = details["P"]
-        p = len(P)
-        print(list(itertools.combinations(P, 2)))
-        pair = max(
-            list(itertools.combinations(P, 2)),
-            key=lambda x: math.sqrt((np.array(x[0]) - np.array(x[1]), np.array(x[0]) - np.array(x[1])))
-        )
-        return math.sqrt(np.dot(np.array(pair[0]) - np.array(pair[1]),
-                                np.array(pair[0]) - np.array(pair[1])))/p
-
-'''
 
 class MeanTauMetric(RankabilityMetric):
     # Two similar statistics exist for the use of mean tau
