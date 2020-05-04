@@ -45,6 +45,7 @@ class ProblemInstance:
         return rs, taus
     
     def get_sensitivity_sample_P(self, rankingAlg, rankability_metrics, n_trials=100, progress_bar=True):
+        #this is totally unfinished
         # Load in the initial D matrix and get a ranking without noise
         D = self.dataSource.init_D()
         perfect_ranking = rankingAlg.rank(D)
@@ -109,18 +110,32 @@ class KendallWMetric(RankabilityMetric):
 
 
 class L2DifferenceMetric(RankabilityMetric):
-    
+    #RankVectors should be an array of ranking vectors
     def compute(self, k, details):
         P = details["P"]
         p = len(P)
-        print(list(itertools.combinations(P, 2)))
+        #NTS: possible to be more efficient here 
+        #print(list(itertools.combinations(P, 2)))
         pair = max(
             list(itertools.combinations(P, 2)),
-            key=lambda x: math.sqrt((np.array(x[0]) - np.array(x[1]), np.array(x[0]) - np.array(x[1])))
+            key=lambda x: np.linalg.norm(np.array(x[0]) - np.array(x[1]))
         )
-        return math.sqrt(np.dot(np.array(pair[0]) - np.array(pair[1]),
-                                np.array(pair[0]) - np.array(pair[1])))/p
+        
+        return np.linalg.norm(np.array(pair[0]) - np.array(pair[1]))/np.linalg.norm(np.arange(0,p) - np.arange(p - 1, -1, -1))
+    
+    # just in case something broke in translation
+    def MaxL2Difference(self, RankVectors):
+        n = len(RankVectors[0])
+        #NTS: possible to be more efficient here 
+        #print(list(itertools.combinations(RankVectors, 2)))
+        pair = max(list(itertools.combinations(RankVectors, 2)), key=lambda x: np.linalg.norm(np.array(x[0]) - np.array(x[1])))
+        return np.linalg.norm(np.array(pair[0]) - np.array(pair[1]))/np.linalg.norm(np.arange(0,n) - np.arange(n - 1, -1, -1))
 
+class PMaxL2DifferenceMetric(RankabilityMetric):
+    def MaxL2Difference(self, RankVectors):
+        #k, details = pyrankability.hillside.bilp_two_most_distant(RankVectors)
+        #return math.sqrt(np.dot(np.array(details["perm_x"]) - np.array(details["perm_y"]), np.array(details["perm_x"]) - np.array(details["perm_y"])))/len(RankVectors)
+        pass
 
 class MeanTauMetric(RankabilityMetric):
     # Two similar statistics exist for the use of mean tau
@@ -179,6 +194,10 @@ class NoiseGenerator:
     def apply_noise(self, D):
         # Child classes should return numpy array of D_tilde
         raise NotImplemented("Don't use the generic NoiseGenerator class")
+        
+class IdentityNoise(NoiseGenerator):
+    def apply_noise(self, D):
+        return D
 
 class BinaryFlipNoise(NoiseGenerator):
     def __init__(self, noisePercentage):
@@ -463,11 +482,30 @@ def main():
         return Dcopy
     noisy = noise_D(perf, .533333)
     print(noisy)
-    k, details = pyrankability.hillside.bilp(noisy, num_random_restarts=10, find_pair=True)
-    print(k)
-    print(details["P"])
+    #k, details = pyrankability.hillside.bilp(noisy, num_random_restarts=10, find_pair=True)
+    #print(k)
+    #print(details["P"])
+    #print(l2dm.MaxL2Difference(details["P"]))
+    
+    eloTournament = SynthELOTournamentSource(16, 5, 80, 800)
+    smalleloTournament = SynthELOTournamentSource(4, 5, 80, 800)
     l2dm = L2DifferenceMetric()
+    
+    eloMatrix = eloTournament.init_D()
+    smalleloMatrix = smalleloTournament.init_D()
+    print(eloMatrix)
+    #k, details = pyrankability.hillside.bilp_two_most_distant(eloMatrix)
+    #print(details["perm_x"],details["perm_y"])
+    #print(details["x"],details["y"])
+    k, details = pyrankability.hillside.bilp(eloMatrix, num_random_restarts=10, find_pair=True)
+    print(k)
+    print(set(details["P"]))
     print(l2dm.MaxL2Difference(details["P"]))
+    k, details = pyrankability.hillside.bilp(smalleloMatrix, num_random_restarts=10, find_pair=True)
+    print(k)
+    print(set(details["P"]))
+    print(l2dm.MaxL2Difference(details["P"]))
+    
 
     
 
