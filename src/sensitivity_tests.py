@@ -318,6 +318,27 @@ class DataSource:
         raise NotImplemented("Don't use the generic DataSource class")
 
 
+class LOLib(DataSource):
+    def __init__(self, file_name):
+        self.n = 0
+        self.file_name = file_name
+        
+class LOLib(DataSource):
+    def __init__(self, file_name):
+        self.n = 0
+        self.file_name = file_name
+        
+    def init_D(self):
+        with open("src/lolib_data/" + self.file_name, 'r') as f:
+            unparsed = f.read().splitlines()
+        self.n = int(unparsed[0]) #0th element is dim of D
+        elements = [row.split(' ') for row in unparsed[1:]]
+        D = []
+        for row in elements:
+            D.append([int(e) for e in row if e != ''])
+        return np.array(D)
+    
+        
 class PerfectBinarySource(DataSource):
     
     def __init__(self, n):
