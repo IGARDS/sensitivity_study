@@ -441,39 +441,6 @@ class MarkovChainRankingAlgorithm(RankingAlgorithm):
 
 
 def main():
-    cra = ColleyRankingAlgorithm()
-    mra = MasseyRankingAlgorithm()
-    fivefive = np.zeros((5,5))
-    est = np.array([[0,1,0,0,0],
-                    [0,0,1,0,0],
-                    [0,0,0,1,0],
-                    [0,0,0,0,1],
-                    [0,0,0,0,0]])
-    fivegood = np.array([[0,1,0,0,0],
-                        [0,0,1,0,0],
-                        [0,0,0,1,0],
-                        [0,0,0,0,1],
-                        [1,1,1,1,0]])
-    completedominance = np.array([[0,1,1,1,1],
-                                [0,0,1,1,1],
-                                [0,0,0,1,1],
-                                [0,0,0,0,1],
-                                [0,0,0,0,0]])
-    completedominanceweight = np.array([[0,5,5,5,5],
-                                        [0,0,400,100,100],
-                                        [0,0,0,1,1],
-                                        [0,0,0,0,1],
-                                        [0,0,0,0,0]])
-    worstcase = np.zeros((5,5))
-    print("Colley test:" + str(cra.rank(est)))
-    print("Colley test fivegood:" + str(cra.rank(fivegood)))
-    print("Colley test perfect season:" + str(cra.rank(completedominance)))
-    print("Colley test worst case:" + str(cra.rank(worstcase)))
-    print("Massey test:" + str(mra.rank(est)))
-    print("Massey test perfect season weighted:" + str(mra.rank(completedominanceweight)))
-    print("The Massey method does not work on the worst case")
-    
-    
     testmatrix = PerfectBinarySource(10)
     perf = testmatrix.init_D()
     print(perf)
@@ -494,6 +461,7 @@ def main():
     print(details["P"])
     l2dm = L2DifferenceMetric()
     print(l2dm.MaxL2Difference(details["P"]))
+
     
 
 #if __name__ == "__main__":
