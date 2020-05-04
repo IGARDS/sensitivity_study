@@ -101,11 +101,11 @@ class MeanTauMetric(RankabilityMetric):
             raise ValueError("Unrecognized MeanTauMetric strategy: %s" % strategy)
     
     # Defined by Ehrenberg (1952) as a possible measure of concordance
-    def get_W_t(m, u):
+    def get_W_t(self, m, u):
         return ((m - 1.0) * u + 1.0) / m
     
     # Defined by Hays (1960) so that a minimum of 0 is always possible for all values of m
-    def get_W_a(m, u):
+    def get_W_a(self, m, u):
         if m & 1 == 1:
             m += 1
         return ((m - 1.0) * u + 1.0) / m
