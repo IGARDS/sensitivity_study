@@ -3,8 +3,7 @@ import math
 import random
 import sys
 import itertools
-sys.path.insert(0,"/home/egoldfar/rankability_toolbox/pyrankability")
-#sys.path.append("/home/jwaschur/rankabiity_toolbox")
+sys.path.append("~/rankabiity_toolbox")
 import pyrankability
 from scipy import stats
 from tqdm import tqdm
@@ -109,6 +108,7 @@ class KendallWMetric(RankabilityMetric):
         n = len(P[0])
         return 1 - ((k / ((n*n - n)/2)) * (1-self.kendall_w(np.array(P))))
 
+
 class L2DifferenceMetric(RankabilityMetric):
     #RankVectors should be an array of ranking vectors
     def MaxL2Difference(self, RankVectors):
@@ -124,6 +124,20 @@ class PMaxL2DifferenceMetric(RankabilityMetric):
         #return math.sqrt(np.dot(np.array(details["perm_x"]) - np.array(details["perm_y"]), np.array(details["perm_x"]) - np.array(details["perm_y"])))/len(RankVectors)
         pass
     
+'''    
+    def compute(self, k, details):
+        P = details["P"]
+        p = len(P)
+        print(list(itertools.combinations(P, 2)))
+        pair = max(
+            list(itertools.combinations(P, 2)),
+            key=lambda x: math.sqrt((np.array(x[0]) - np.array(x[1]), np.array(x[0]) - np.array(x[1])))
+        )
+        return math.sqrt(np.dot(np.array(pair[0]) - np.array(pair[1]),
+                                np.array(pair[0]) - np.array(pair[1])))/p
+
+'''
+
 class MeanTauMetric(RankabilityMetric):
     # Two similar statistics exist for the use of mean tau
     #      "Hays"  -->  W_a defined by Hays (1960)
@@ -148,11 +162,11 @@ class MeanTauMetric(RankabilityMetric):
             raise ValueError("Unrecognized MeanTauMetric strategy: %s" % strategy)
     
     # Defined by Ehrenberg (1952) as a possible measure of concordance
-    def get_W_t(m, u):
+    def get_W_t(self, m, u):
         return ((m - 1.0) * u + 1.0) / m
     
     # Defined by Hays (1960) so that a minimum of 0 is always possible for all values of m
-    def get_W_a(m, u):
+    def get_W_a(self, m, u):
         if m & 1 == 1:
             m += 1
         return ((m - 1.0) * u + 1.0) / m
