@@ -78,12 +78,7 @@ class ProblemInstance:
 ######## RANKABILITY METRICS ########
     
 class RankabilityMetric:
-<<<<<<< HEAD
-    def compute(self, k, P):
-=======
-    
     def compute(self, k, details):
->>>>>>> ea4e518485bd3f3067446bee71ab10ed7919c9af
         # Child classes should compute their rankability metric from k and P
         raise NotImplemented("Don't use the generic RankabilityMetric class")
 
@@ -501,6 +496,5 @@ def main():
     print(l2dm.MaxL2Difference(details["P"]))
     
 
->>>>>>> ea4e518485bd3f3067446bee71ab10ed7919c9af
 #if __name__ == "__main__":
 #   main()
