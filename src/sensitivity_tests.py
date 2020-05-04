@@ -21,43 +21,10 @@ class ProblemInstance:
         D = self.dataSource.init_D()
         perfect_ranking = rankingAlg.rank(D)
         
-        print(D)
         k, details = pyrankability.hillside.bilp(D, num_random_restarts=10)
-        print(k)
-        print(details)
         
         # Compute each considered rankability metric
-        rs = [metric.compute(k, P) for metric in rankability_metrics]
-        
-        # Setup the progress bar if needed
-        if progress_bar:
-            range_iter = tqdm(range(n_trials), ascii=True)
-        else:
-            range_iter = range(n_trials)
-        
-        taus = []
-        for trial_index in range_iter:
-            D_noisy = self.noiseGenerator.apply_noise(D)
-            noisy_ranking = rankingAlg.rank(D_noisy)
-            tau, pval = stats.kendalltau(perfect_ranking, noisy_ranking)
-            taus.append(tau)
-        
-        return rs, taus
-    
-    def get_sensitivity_sample_P(self, rankingAlg, rankability_metrics, n_trials=100, progress_bar=True):
-        #this is totally unfinished
-        # Load in the initial D matrix and get a ranking without noise
-        D = self.dataSource.init_D()
-        perfect_ranking = rankingAlg.rank(D)
-        
-        # Sample set P of D matrix
-        print(D)
-        k, details = pyrankability.lop.lp(D)
-        print(k)
-        P, info = pyrankability.lop.find_P_from_x(D, k, details)
-        
-        # Compute each considered rankability metric
-        rs = [metric.compute(k, P) for metric in rankability_metrics]
+        rs = [metric.compute(k, details) for metric in rankability_metrics]
         
         # Setup the progress bar if needed
         if progress_bar:
@@ -87,14 +54,12 @@ class RatioToMaxMetric(RankabilityMetric):
     def compute(self, k, details):
         P = details["P"]
         n = len(P[0])
-        print(k, P)
-        return 1.0 - (k*len(P) / ((n**2 - n)/2*math.factorial(n)))
+        return 1.0 - (k*len(P) / ((n**2 - n)/2 * math.factorial(n)))
     
 
 class KendallWMetric(RankabilityMetric):
     # This function found at: https://stackoverflow.com/a/48916127
     def kendall_w(self, expt_ratings):
-        print(expt_ratings)
         if expt_ratings.ndim!=2:
             raise 'ratings matrix must be 2-dimensional'
         m = expt_ratings.shape[0] # number of raters
@@ -104,31 +69,54 @@ class KendallWMetric(RankabilityMetric):
         S = n*np.var(rating_sums)
         return 12*S/denom
     
-    def compute(self, k, P):
+    def compute(self, k, details):
+        P = details["P"]
         n = len(P[0])
-        return 1 - ((k / ((n*n - n)/2)) * (1-self.kendall_w(np.array(P))))
+        return 1 - ((k / (n**3 - n**2)) * (1-self.kendall_w(np.array(P))))
 
 
 class L2DifferenceMetric(RankabilityMetric):
     
-    def compute(self, k, details):
-        P = details["P"]
+    def __init__(self, strategy="max"):
+        strategy=strategy.lower()
+        self.strategy = strategy
+        if strategy == "max":
+            self.get_dist_stat = self.get_max_dist
+        elif strategy == "mean":
+            self.get_dist_stat = self.get_mean_dist
+        else:
+            raise ValueError("Unrecognized L2DifferenceMetric strategy: %s" % strategy)
+    
+    def get_mean_dist(self, P):
         p = len(P)
-        n = len(P[0])
+        mean_dist = 0.0
+        for r1 in range(p):
+            for r2 in range(r1, p):
+                mean_dist += np.linalg.norm(np.array(P[r1]) - np.array(P[r2]))
+        return mean_dist / (p*(p-1)/2.0)
+    
+    def get_max_dist(self, P):
+        p = len(P)
         max_dist = 0.0
         for r1 in range(p):
             for r2 in range(r1, p):
                 dist = np.linalg.norm(np.array(P[r1]) - np.array(P[r2]))
                 if dist > max_dist:
                     max_dist = dist
-        
-        return 1.0 - (k / ((n*n - n)/2) * (1.0 - (max_dist / np.sqrt((p / 3) * (p**2 - 1))))
+        return max_dist
+    
+    def compute(self, k, details):
+        P = details["P"]
+        p = len(P)
+        n = len(P[0])
+        dist = self.get_dist_stat(P)
+        return 1.0 - (k / (n**3 - n**2) * (dist / np.sqrt((n / 3) * (n**2 - 1))))
     
 
 class MeanTauMetric(RankabilityMetric):
     # Two similar statistics exist for the use of mean tau
-    #      "Hays"  -->  W_a defined by Hays (1960)
-    # "Ehrenberg"  -->  W_t defined by Ehrenberg (1952)
+    #      "hays"  -->  W_a defined by Hays (1960)
+    # "ehrenberg"  -->  W_t defined by Ehrenberg (1952)
     #
     # The two strategies are the same when m (# of rankings) is even
     # Hays' W_a is computed with m+1 instead of m when m is odd
@@ -139,12 +127,13 @@ class MeanTauMetric(RankabilityMetric):
     #    n  <-- number of items to rank / length of rankings
     #    u  <-- mean kendall tau over all pairs of rankings
     
-    def __init__(self, strategy="Hays"):
+    def __init__(self, strategy="hays"):
         strategy = strategy.lower()
+        self.strategy = strategy
         if strategy == "hays":
-            self.get_W = self.get_W_t
-        elif strategy == "ehrenberg":
             self.get_W = self.get_W_a
+        elif strategy == "ehrenberg":
+            self.get_W = self.get_W_t
         else:
             raise ValueError("Unrecognized MeanTauMetric strategy: %s" % strategy)
     
@@ -168,11 +157,13 @@ class MeanTauMetric(RankabilityMetric):
         else:
             u = 0.0
             for r1 in range(p):
-                for r2 in range(r1, p):
-                    u += stats.kendalltau(P[r1], P[r2])[0]
-            u /= (p*(p-1)/2)
+                for r2 in range(r1+1, p):
+                    tau, _ = stats.kendalltau(P[r1], P[r2])
+                    u += tau
+            u /= p*(p-1)/2
         n = len(P[0])
-        return 1 - (k / ((n*n - n)/2) * (1.0 - self.get_W(p, u)))
+        w_stat = self.get_W(p, u)
+        return 1 - (k / (n**3 - n**2) * (1.0 - w_stat))
         
 
 ######## NOISE GENERATORS ########
