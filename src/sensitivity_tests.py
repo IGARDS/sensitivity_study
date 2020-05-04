@@ -36,7 +36,7 @@ class PercentageFlipNoise:
         num_flips = (np.square(n) - n) * self.noisePercentage
         unique_elems = set()
         for flip in range(int(num_flips)):
-            i, j = random.sample(range(n), 2)
+            i, j = random.sample(range(n), 2) #Ensures that i and j are distinct
             while ((i, j) in unique_elems): i, j = random.sample(range(n), 2)
             unique_elems.add((i, j))
             D[i][j] = 1 - D[i][j]
