@@ -304,13 +304,8 @@ class DataSource:
     def init_D(self):
         # Child classes should return numpy array
         raise NotImplemented("Don't use the generic DataSource class")
-
-
-class LOLib(DataSource):
-    def __init__(self, file_name):
-        self.n = 0
-        self.file_name = file_name
         
+                      
 class LOLib(DataSource):
     def __init__(self, file_name):
         self.n = 0
