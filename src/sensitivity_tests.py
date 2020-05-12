@@ -3,7 +3,7 @@ import math
 import random
 import sys
 import itertools
-sys.path.append("~/rankabiity_toolbox")
+sys.path.append("~/rankability_toolbox")
 import pyrankability
 from scipy import stats
 from tqdm import tqdm
@@ -45,14 +45,18 @@ class ProblemInstance:
 ######## RANKABILITY METRICS ########
     
 class RankabilityMetric:
+    
     def compute(self, k, details):
+        P = list(set(details["P"]))
+        return self._compute(k, P)
+    
+    def _compute(self, k, P):
         # Child classes should compute their rankability metric from k and P
         raise NotImplemented("Don't use the generic RankabilityMetric class")
 
 
 class RatioToMaxMetric(RankabilityMetric):
-    def compute(self, k, details):
-        P = details["P"]
+    def compute(self, k, P):
         n = len(P[0])
         return 1.0 - (k*len(P) / ((n**2 - n)/2 * math.factorial(n)))
     
@@ -69,8 +73,7 @@ class KendallWMetric(RankabilityMetric):
         S = n*np.var(rating_sums)
         return 12*S/denom
     
-    def compute(self, k, details):
-        P = details["P"]
+    def _compute(self, k, P):
         n = len(P[0])
         return 1 - ((k / (n**3 - n**2)) * (1-self.kendall_w(np.array(P))))
 
@@ -93,7 +96,11 @@ class L2DifferenceMetric(RankabilityMetric):
         for r1 in range(p):
             for r2 in range(r1, p):
                 mean_dist += np.linalg.norm(np.array(P[r1]) - np.array(P[r2]))
-        return mean_dist / (p*(p-1)/2.0)
+        
+        if p == 1:
+            return mean_dist
+        else:
+            return mean_dist / (p*(p-1)/2.0)
     
     def get_max_dist(self, P):
         p = len(P)
@@ -105,8 +112,7 @@ class L2DifferenceMetric(RankabilityMetric):
                     max_dist = dist
         return max_dist
     
-    def compute(self, k, details):
-        P = details["P"]
+    def _compute(self, k, P):
         p = len(P)
         n = len(P[0])
         dist = self.get_dist_stat(P)
@@ -147,8 +153,7 @@ class MeanTauMetric(RankabilityMetric):
             m += 1
         return ((m - 1.0) * u + 1.0) / m
     
-    def compute(self, k, details):
-        P = details["P"]
+    def _compute(self, k, P):
         p = len(P)
         if p == 1:
             return 1.0
@@ -318,12 +323,7 @@ class PerfectBinarySource(DataSource):
     def __init__(self, n):
         self.n = n
     
-    def init_D(self):
-        D = np.full(shape=(self.n,self.n), fill_value=0, dtype=int)
-        for i in range(self.n):
-            for j in range(i+1, self.n):
-                    D[j,i] = (self.n-i) + j
-        return D        
+    def init_D(self):     
         D = np.zeros((self.n,self.n), dtype=int)
         D[np.triu_indices(self.n,1)] = 1
         return D
