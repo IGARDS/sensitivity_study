@@ -12,19 +12,63 @@ from tqdm import tqdm
 
 class ProblemInstance:
     
-    def __init__(self, dataSource, noiseGenerator):
+    def __init__(self, dataSource):
         self.dataSource = dataSource
-        self.noiseGenerator = noiseGenerator
     
-    def get_sensitivity(self, rankingAlg, rankability_metrics, n_trials=100, progress_bar=True):
+    def get_D(self, refresh=False):
+        if self._D is None or refresh:
+            self._D = self.dataSource.init_D()
+        else:
+            return self._D
+    
+    def get_optimal_rankings(self,
+                             model="lop",
+                             num_random_restarts=0):
+        if model == "lop":
+            return pyrankability.lop.bilp(self.get_D(), num_random_restarts=num_random_restarts)
+        elif model == "hillside":
+             return pyrankability.hillside.bilp(self.get_D(), num_random_restarts=num_random_restarts)
+        else:
+            raise ValueError("Unrecognized model name '{}' should be one of 'lop' or 'hillside'".format(model))
+    
+    def collect_data(self,
+                     ranking_algorithms=[LOPRankingAlgorithm(), MasseyRankingAlgorithm(), ColleyRankingAlgorithm()],
+                     noise_generators=[SwapNoise(0.05), BinaryFlipNoise(0.05)],
+                     model="lop",
+                     num_random_restarts=50,
+                     n_sensitivity_trials=50):
+        D = self.get_D(refresh=True)
+        k, details = self.get_optimal_rankings(model=model,
+                                               num_random_restarts=num_random_restarts)
+        data = get_P_stats(details["P"])
+        data["k"] = k
+        data["model"] = model
+        data["D"] = str(D)
+        data["P"] = str(set(details["P"]))
+        
+        for rankingAlg in ranking_algorithms:
+            for noiseGenerator in noise_generators:
+                taus = self.get_sensitivity(rankingAlg,
+                                            noiseGenerator,
+                                            model=model,
+                                            n_trials=n_sensitivity_trials)
+                mean_tau_name = "mean_sensitivity({},{})".format(str(rankingAlg), str(noiseGenerator))
+                data[mean_tau_name] = np.mean(taus)
+                std_tau_name = "std_sensitivity({},{})".format(str(rankingAlg), str(noiseGenerator))
+                data[std_tau_name] = np.std(taus)
+        
+        return data
+    
+    def get_sensitivity(self,
+                        rankingAlg,
+                        noiseGenerator,
+                        model="lop",
+                        n_trials=100,
+                        progress_bar=False,
+                        refresh=False):
         # Load in the initial D matrix and get a ranking without noise
-        D = self.dataSource.init_D()
+        D = self.get_D(refresh)
         perfect_ranking = rankingAlg.rank(D)
-        
-        k, details = pyrankability.hillside.bilp(D, num_random_restarts=10)
-        
-        # Compute each considered rankability metric
-        rs = [metric.compute(k, details) for metric in rankability_metrics]
         
         # Setup the progress bar if needed
         if progress_bar:
@@ -34,14 +78,77 @@ class ProblemInstance:
         
         taus = []
         for trial_index in range_iter:
-            D_noisy = self.noiseGenerator.apply_noise(D)
+            D_noisy = noiseGenerator.apply_noise(D)
             noisy_ranking = rankingAlg.rank(D_noisy)
             tau, pval = stats.kendalltau(perfect_ranking, noisy_ranking)
             taus.append(tau)
         
-        return rs, taus
+        return taus
 
+######## STATISTICS OF P ########
+# Functions of P which package certain similar statistics
+# together for sake of efficiency. These functions will probably
+# replace the current "RankabilityMetric" classes since running
+# cross-validated linear models seems to be the better alternative
+# to hand-crafting metrics.
+
+# This function found at: https://stackoverflow.com/a/48916127
+def kendall_w(expt_ratings):
+    expt_ratings = np.array(expt_ratings)
+    if expt_ratings.ndim!=2:
+        raise 'ratings matrix must be 2-dimensional'
+    m = expt_ratings.shape[0] # number of raters
+    n = expt_ratings.shape[1] # number of items
+    denom = m**2*(n**3-n)
+    rating_sums = np.sum(expt_ratings, axis=0)
+    S = n*np.var(rating_sums)
+    return "Kendall_W", 12*S/denom
+
+def p_len(P):
+    return "p_lowerbound", len(P)
+
+def l2_dist_stats(self, P):
+    p = len(P)
+    max_dist = 0.0
+    mean_dist = 0.0
+    for r1 in range(p):
+        for r2 in range(r1+1, p):
+            dist = np.linalg.norm(np.array(P[r1]) - np.array(P[r2]))
+            mean_dist += dist
+            if dist > max_dist:
+                max_dist = dist
+                
+    if p > 1:
+        mean_dist /= (p*(p-1)/2.0)
     
+    return ["max_L2_dist", "mean_L2_dist"], [max_dist, mean_dist]
+
+def tau_stats(self, P):
+    p = len(P)
+    min_tau = 0.0
+    mean_tau = 0.0
+    for r1 in range(p):
+        for r2 in range(r1+1, p):
+            tau, _ = stats.kendalltau(P[r1], P[r2])
+            mean_tau += tau
+            if tau < min_tau:
+                min_tau = tau
+                
+    if p > 1:
+        mean_tau /= (p*(p-1)/2.0)
+    
+    return ["max_tau", "mean_tau"], [max_tau, mean_tau]
+
+def get_P_stats(P):
+    # Ensure P is a set, then make addressable as a list
+    P = list(set(P))
+    results = {}
+    for func in [kendall_w, p_len, l2_dist_stats, tau_stats]:
+        stat_names, stat_values = func(P)
+        for i in range(len(stat_names)):
+            results[stat_names[i]] = stat_values[i]
+    return results
+
 ######## RANKABILITY METRICS ########
     
 class RankabilityMetric:
@@ -56,26 +163,17 @@ class RankabilityMetric:
 
 
 class RatioToMaxMetric(RankabilityMetric):
-    def compute(self, k, P):
+    def _compute(self, k, P):
         n = len(P[0])
         return 1.0 - (k*len(P) / ((n**2 - n)/2 * math.factorial(n)))
     
 
 class KendallWMetric(RankabilityMetric):
-    # This function found at: https://stackoverflow.com/a/48916127
-    def kendall_w(self, expt_ratings):
-        if expt_ratings.ndim!=2:
-            raise 'ratings matrix must be 2-dimensional'
-        m = expt_ratings.shape[0] # number of raters
-        n = expt_ratings.shape[1] # number of items
-        denom = m**2*(n**3-n)
-        rating_sums = np.sum(expt_ratings, axis=0)
-        S = n*np.var(rating_sums)
-        return 12*S/denom
     
     def _compute(self, k, P):
         n = len(P[0])
-        return 1 - ((k / (n**3 - n**2)) * (1-self.kendall_w(np.array(P))))
+        _, w = kendall_w(P)
+        return 1 - ((k / (n**3 - n**2)) * (1 - w))
 
 
 class L2DifferenceMetric(RankabilityMetric):
@@ -94,7 +192,7 @@ class L2DifferenceMetric(RankabilityMetric):
         p = len(P)
         mean_dist = 0.0
         for r1 in range(p):
-            for r2 in range(r1, p):
+            for r2 in range(r1+1, p):
                 mean_dist += np.linalg.norm(np.array(P[r1]) - np.array(P[r2]))
         
         if p == 1:
@@ -106,7 +204,7 @@ class L2DifferenceMetric(RankabilityMetric):
         p = len(P)
         max_dist = 0.0
         for r1 in range(p):
-            for r2 in range(r1, p):
+            for r2 in range(r1+1, p):
                 dist = np.linalg.norm(np.array(P[r1]) - np.array(P[r2]))
                 if dist > max_dist:
                     max_dist = dist
@@ -182,6 +280,9 @@ class NoiseGenerator:
 class IdentityNoise(NoiseGenerator):
     def apply_noise(self, D):
         return D
+    
+    def __str__(self):
+        return "IdentityNoise()"
 
 class BinaryFlipNoise(NoiseGenerator):
     def __init__(self, noisePercentage):
@@ -198,6 +299,9 @@ class BinaryFlipNoise(NoiseGenerator):
             unique_elems.add((i, j))
             D_noisy[i][j] = 1 - D_noisy[i][j]
         return D_noisy
+    
+    def __str__(self):
+        return "BinaryFlipNoise({})".format(self.noisePercentage)
 
 
 class SwapNoise(NoiseGenerator):
@@ -225,6 +329,9 @@ class SwapNoise(NoiseGenerator):
             D_noisy[i][j] = D_noisy[j][i]
             D_noisy[j][i] = temp
         return D_noisy
+    
+    def __str__(self):
+        return "SwapNoise({})".format(self.noisePercentage)
 
 
 class BootstrapResamplingNoise(NoiseGenerator):
@@ -253,6 +360,9 @@ class BootstrapResamplingNoise(NoiseGenerator):
             D_noisy[i_arr[rel_idx], j_arr[rel_idx]] = D[i_arr[bs_rel_idx], j_arr[bs_rel_idx]]
         
         return D_noisy
+    
+    def __str__(self):
+        return "BootstrapResamplingNoise({})".format(self.noisePercentage)
 
 
 class NormalResamplingNoise(NoiseGenerator):
@@ -291,6 +401,9 @@ class NormalResamplingNoise(NoiseGenerator):
             D_noisy[i_arr[rel_idx], j_arr[rel_idx]] = sample
         
         return D_noisy
+    
+    def __str__(self):
+        return "NormalResamplingNoise({})".format(self.noisePercentage)
 
 
 ######## DATA SOURCES ########
@@ -391,10 +504,13 @@ class RankingAlgorithm:
 class LOPRankingAlgorithm(RankingAlgorithm):
     
     def rank(self, D):
-        k, details = pyrankability.hillside.bilp(D)
+        k, details = pyrankability.lop.bilp(D)
         # This could return the full P set or randomly sample from it rather
         # than reporting the first it finds.
         return details["P"][0]
+    
+    def __str__(self):
+        return "LOPRankingAlgorithm"
 
 
 class ColleyRankingAlgorithm(RankingAlgorithm):
@@ -414,6 +530,9 @@ class ColleyRankingAlgorithm(RankingAlgorithm):
         r = sorted([(r[i - 1], i) for i in range(1, D.shape[0] + 1)])
         retvec = [r[i][1] for i in range(len(r))]
         return retvec
+    
+    def __str__(self):
+        return "ColleyRankingAlgorithm"
 
 
 class MasseyRankingAlgorithm(RankingAlgorithm):
@@ -436,6 +555,9 @@ class MasseyRankingAlgorithm(RankingAlgorithm):
         r = sorted([(r[i - 1], i) for i in range(1, D.shape[0] + 1)])
         retvec = [r[i][1] for i in range(len(r))]
         return retvec
+    
+    def __str__(self):
+        return "MasseyRankingAlgorithm"
 
 
 class MarkovChainRankingAlgorithm(RankingAlgorithm):
@@ -459,6 +581,9 @@ class MarkovChainRankingAlgorithm(RankingAlgorithm):
         print(eigenvecs)
         indiciesreverse = eigenvals.argsort()[::-1]
         print(eigenvecs[indiciesreverse[0]])
+    
+    def __str__(self):
+        return "MarkovChainRankingAlgorithm"
 
 
 def main():
