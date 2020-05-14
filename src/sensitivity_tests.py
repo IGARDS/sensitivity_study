@@ -6,84 +6,8 @@ import itertools
 sys.path.append("~/rankability_toolbox")
 import pyrankability
 from scipy import stats
+import json
 from tqdm import tqdm
-
-######## PROBLEM INSTANCE ########
-
-class ProblemInstance:
-    
-    def __init__(self, dataSource):
-        self.dataSource = dataSource
-    
-    def get_D(self, refresh=False):
-        if self._D is None or refresh:
-            self._D = self.dataSource.init_D()
-        else:
-            return self._D
-    
-    def get_optimal_rankings(self,
-                             model="lop",
-                             num_random_restarts=0):
-        if model == "lop":
-            return pyrankability.lop.bilp(self.get_D(), num_random_restarts=num_random_restarts)
-        elif model == "hillside":
-             return pyrankability.hillside.bilp(self.get_D(), num_random_restarts=num_random_restarts)
-        else:
-            raise ValueError("Unrecognized model name '{}' should be one of 'lop' or 'hillside'".format(model))
-    
-    def collect_data(self,
-                     ranking_algorithms=[LOPRankingAlgorithm(), MasseyRankingAlgorithm(), ColleyRankingAlgorithm()],
-                     noise_generators=[SwapNoise(0.05), BinaryFlipNoise(0.05)],
-                     model="lop",
-                     num_random_restarts=50,
-                     n_sensitivity_trials=50):
-        D = self.get_D(refresh=True)
-        k, details = self.get_optimal_rankings(model=model,
-                                               num_random_restarts=num_random_restarts)
-        data = get_P_stats(details["P"])
-        data["k"] = k
-        data["model"] = model
-        data["D"] = str(D)
-        data["P"] = str(set(details["P"]))
-        
-        for rankingAlg in ranking_algorithms:
-            for noiseGenerator in noise_generators:
-                taus = self.get_sensitivity(rankingAlg,
-                                            noiseGenerator,
-                                            model=model,
-                                            n_trials=n_sensitivity_trials)
-                mean_tau_name = "mean_sensitivity({},{})".format(str(rankingAlg), str(noiseGenerator))
-                data[mean_tau_name] = np.mean(taus)
-                std_tau_name = "std_sensitivity({},{})".format(str(rankingAlg), str(noiseGenerator))
-                data[std_tau_name] = np.std(taus)
-        
-        return data
-    
-    def get_sensitivity(self,
-                        rankingAlg,
-                        noiseGenerator,
-                        model="lop",
-                        n_trials=100,
-                        progress_bar=False,
-                        refresh=False):
-        # Load in the initial D matrix and get a ranking without noise
-        D = self.get_D(refresh)
-        perfect_ranking = rankingAlg.rank(D)
-        
-        # Setup the progress bar if needed
-        if progress_bar:
-            range_iter = tqdm(range(n_trials), ascii=True)
-        else:
-            range_iter = range(n_trials)
-        
-        taus = []
-        for trial_index in range_iter:
-            D_noisy = noiseGenerator.apply_noise(D)
-            noisy_ranking = rankingAlg.rank(D_noisy)
-            tau, pval = stats.kendalltau(perfect_ranking, noisy_ranking)
-            taus.append(tau)
-        
-        return taus
 
 ######## STATISTICS OF P ########
 # Functions of P which package certain similar statistics
@@ -102,12 +26,12 @@ def kendall_w(expt_ratings):
     denom = m**2*(n**3-n)
     rating_sums = np.sum(expt_ratings, axis=0)
     S = n*np.var(rating_sums)
-    return "Kendall_W", 12*S/denom
+    return "kendall_w", 12*S/denom
 
 def p_len(P):
     return "p_lowerbound", len(P)
 
-def l2_dist_stats(self, P):
+def l2_dist_stats(P):
     p = len(P)
     max_dist = 0.0
     mean_dist = 0.0
@@ -123,9 +47,9 @@ def l2_dist_stats(self, P):
     
     return ["max_L2_dist", "mean_L2_dist"], [max_dist, mean_dist]
 
-def tau_stats(self, P):
+def tau_stats(P):
     p = len(P)
-    min_tau = 0.0
+    min_tau = 1.0
     mean_tau = 0.0
     for r1 in range(p):
         for r2 in range(r1+1, p):
@@ -136,8 +60,10 @@ def tau_stats(self, P):
                 
     if p > 1:
         mean_tau /= (p*(p-1)/2.0)
+    else:
+        mean_tau = 1.0
     
-    return ["max_tau", "mean_tau"], [max_tau, mean_tau]
+    return ["min_tau", "mean_tau"], [min_tau, mean_tau]
 
 def get_P_stats(P):
     # Ensure P is a set, then make addressable as a list
@@ -145,8 +71,11 @@ def get_P_stats(P):
     results = {}
     for func in [kendall_w, p_len, l2_dist_stats, tau_stats]:
         stat_names, stat_values = func(P)
-        for i in range(len(stat_names)):
-            results[stat_names[i]] = stat_values[i]
+        if type(stat_names) == list:
+            for i in range(len(stat_names)):
+                results[stat_names[i]] = stat_values[i]
+        else:
+            results[stat_names] = stat_values
     return results
 
 ######## RANKABILITY METRICS ########
@@ -430,6 +359,9 @@ class LOLib(DataSource):
             D.append([int(e) for e in row if e != ''])
         return np.array(D)
     
+    def __str__(self):
+        return "LOLib({})".format(self.file_name)
+    
         
 class PerfectBinarySource(DataSource):
     
@@ -440,6 +372,9 @@ class PerfectBinarySource(DataSource):
         D = np.zeros((self.n,self.n), dtype=int)
         D[np.triu_indices(self.n,1)] = 1
         return D
+    
+    def __str__(self):
+        return "PerfectBinarySource({})".format(self.n)
 
 
 class PerfectWeightedSource(DataSource):
@@ -455,6 +390,9 @@ class PerfectWeightedSource(DataSource):
             i, j = i_arr[idx], j_arr[idx]
             D[i, j] = self.scale * (self.n-i+j)
         return D
+    
+    def __str__(self):
+        return "PerfectWeightedSource({},{})".format(self.n, self.scale)
 
 
 class SynthELOTournamentSource(DataSource):
@@ -490,6 +428,9 @@ class SynthELOTournamentSource(DataSource):
             D[i, j] = i_wins
             D[j, i] = j_wins
         return D
+    
+    def __str__(self):
+        return "SynthELOTournamentSource({},{},{},{})".format(self.n, self.n_games, self.comp_var, self.elo_scale)
 
 
 ######## RANKING ALGORITHMS ########
@@ -528,7 +469,7 @@ class ColleyRankingAlgorithm(RankingAlgorithm):
                     C[x][y] = (D[x][y] + D[y][x]) * -1
         r = np.linalg.solve(C, b)
         r = sorted([(r[i - 1], i) for i in range(1, D.shape[0] + 1)])
-        retvec = [r[i][1] for i in range(len(r))]
+        retvec = [r[i][1]-1 for i in range(len(r)-1, -1, -1)]
         return retvec
     
     def __str__(self):
@@ -553,7 +494,7 @@ class MasseyRankingAlgorithm(RankingAlgorithm):
         b[D.shape[0] - 1] = 0
         r = np.linalg.solve(C, b)
         r = sorted([(r[i - 1], i) for i in range(1, D.shape[0] + 1)])
-        retvec = [r[i][1] for i in range(len(r))]
+        retvec = [r[i][1]-1 for i in range(len(r)-1, -1, -1)]
         return retvec
     
     def __str__(self):
@@ -585,7 +526,106 @@ class MarkovChainRankingAlgorithm(RankingAlgorithm):
     def __str__(self):
         return "MarkovChainRankingAlgorithm"
 
+    
+####### SOME HELPFUL GLOBALS #######
 
+ALL_RANKING_ALGS = [LOPRankingAlgorithm(), MasseyRankingAlgorithm(), ColleyRankingAlgorithm()]
+LOW_INTENSITY_NOISE_GENS = [SwapNoise(0.05), BinaryFlipNoise(0.05)]
+
+######## PROBLEM INSTANCE ########
+
+class ProblemInstance:
+    
+    def __init__(self, dataSource):
+        self.dataSource = dataSource
+        self._D = None
+    
+    def get_D(self, refresh=False):
+        if self._D is None or refresh:
+            self._D = self.dataSource.init_D()
+        return self._D
+    
+    def get_optimal_rankings(self,
+                             model="lop",
+                             num_random_restarts=0):
+        if model == "lop":
+            return pyrankability.lop.bilp(self.get_D(), num_random_restarts=num_random_restarts)
+        elif model == "hillside":
+             return pyrankability.hillside.bilp(self.get_D(), num_random_restarts=num_random_restarts)
+        else:
+            raise ValueError("Unrecognized model name '{}' should be one of 'lop' or 'hillside'".format(model))
+    
+    def get_most_distant_optimal_rankings(self,
+                                          model="lop"):
+        if model == "lop":
+            return pyrankability.lop.bilp_two_most_distant(self.get_D(), verbose=False)
+        elif model == "hillside":
+             return pyrankability.hillside.bilp_two_most_distant(self.get_D(), verbose=False)
+        else:
+            raise ValueError("Unrecognized model name '{}' should be one of 'lop' or 'hillside'".format(model))
+    
+    def collect_data(self,
+                     ranking_algorithms=ALL_RANKING_ALGS,
+                     noise_generators=LOW_INTENSITY_NOISE_GENS,
+                     model="lop",
+                     num_random_restarts=50,
+                     n_sensitivity_trials=50):
+        D = self.get_D(refresh=True)
+        k, details = self.get_optimal_rankings(model=model,
+                                               num_random_restarts=num_random_restarts)
+        P = details["P"]
+        k_furthest, details_furthest = self.get_most_distant_optimal_rankings(model=model)
+        P.append(details_furthest["perm_x"])
+        P.append(details_furthest["perm_y"])
+        data = get_P_stats(P)
+        data["k"] = k
+        data["model"] = model
+        data["D"] = json.dumps(D.tolist())
+        data["Source"] = str(self.dataSource)
+        data["n_items"] = D.shape[0]
+        data["P"] = str(list(set(P)))
+        
+        for rankingAlg in ranking_algorithms:
+            for noiseGenerator in noise_generators:
+                taus = self.get_sensitivity(rankingAlg,
+                                            noiseGenerator,
+                                            model=model,
+                                            n_trials=n_sensitivity_trials)
+                mean_tau_name = "mean_sensitivity({},{})".format(str(rankingAlg), str(noiseGenerator))
+                data[mean_tau_name] = np.mean(taus)
+                std_tau_name = "std_sensitivity({},{})".format(str(rankingAlg), str(noiseGenerator))
+                data[std_tau_name] = np.std(taus)
+        
+        return data
+    
+    def get_sensitivity(self,
+                        rankingAlg,
+                        noiseGenerator,
+                        model="lop",
+                        n_trials=100,
+                        progress_bar=False,
+                        refresh=False):
+        # Load in the initial D matrix and get a ranking without noise
+        D = self.get_D(refresh)
+        perfect_ranking = rankingAlg.rank(D)
+        
+        # Setup the progress bar if needed
+        if progress_bar:
+            range_iter = tqdm(range(n_trials), ascii=True)
+        else:
+            range_iter = range(n_trials)
+        
+        taus = []
+        for trial_index in range_iter:
+            D_noisy = noiseGenerator.apply_noise(D)
+            noisy_ranking = rankingAlg.rank(D_noisy)
+            tau, pval = stats.kendalltau(perfect_ranking, noisy_ranking)
+            taus.append(tau)
+        
+        return taus
+
+######## MAIN, FOR DEBUG ONLY ########
+    
 def main():
     testmatrix = PerfectBinarySource(10)
     perf = testmatrix.init_D()
