@@ -5,9 +5,9 @@ import sys
 import itertools
 sys.path.append("~/rankability_toolbox")
 import pyrankability
-from scipy import stats
 import json
 from tqdm import tqdm
+from utilities import *
 
 ######## STATISTICS OF P ########
 # Functions of P which package certain similar statistics
@@ -53,7 +53,7 @@ def tau_stats(P):
     mean_tau = 0.0
     for r1 in range(p):
         for r2 in range(r1+1, p):
-            tau, _ = stats.kendalltau(P[r1], P[r2])
+            tau = kendall_tau(P[r1], P[r2])
             mean_tau += tau
             if tau < min_tau:
                 min_tau = tau
@@ -185,12 +185,12 @@ class MeanTauMetric(RankabilityMetric):
         if p == 1:
             return 1.0
         if p == 2:
-            u, _ = stats.kendalltau(P[0], P[1])
+            u = kendall_tau(P[0], P[1])
         else:
             u = 0.0
             for r1 in range(p):
                 for r2 in range(r1+1, p):
-                    tau, _ = stats.kendalltau(P[r1], P[r2])
+                    tau = kendall_tau(P[r1], P[r2])
                     u += tau
             u /= p*(p-1)/2
         n = len(P[0])
@@ -433,6 +433,26 @@ class SynthELOTournamentSource(DataSource):
         return "SynthELOTournamentSource({},{},{},{})".format(self.n, self.n_games, self.comp_var, self.elo_scale)
 
 
+class UniformRandomSource(DataSource):
+    # Every off-diagonal element of the matrix is drawn independently from a uniform
+    # distribution over the range of integers [0, max_val].
+    
+    def __init__(self, n, max_val=1):
+        # n --> the number of items
+        # max_val --> the maximum value that can appear as an element in the matrix
+        self.n = n
+        self.max_val = max_val
+    
+    def init_D(self):
+        D = np.random.randint(low=0, high=self.max_val+1, size=(self.n,self.n), dtype=int)
+        for i in range(self.n):
+            D[i,i] = 0
+        return D
+    
+    def __str__(self):
+        return "UniformRandomSource({},{})".format(self.n, self.max_val)
+
+
 ######## RANKING ALGORITHMS ########
 
 class RankingAlgorithm:
@@ -619,7 +639,7 @@ class ProblemInstance:
         for trial_index in range_iter:
             D_noisy = noiseGenerator.apply_noise(D)
             noisy_ranking = rankingAlg.rank(D_noisy)
-            tau, pval = stats.kendalltau(perfect_ranking, noisy_ranking)
+            tau = kendall_tau(perfect_ranking, noisy_ranking)
             taus.append(tau)
         
         return taus
