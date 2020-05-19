@@ -522,26 +522,42 @@ class MasseyRankingAlgorithm(RankingAlgorithm):
 
 
 class MarkovChainRankingAlgorithm(RankingAlgorithm):
-    
     def rank(self, D):
+        #f = np.vectorize(lambda x: 1 if x > 0 else 0)
+        '''for i in range(D.shape[0]):
+            for j in range(i, D.shape[1]):
+                if D[i][j] > D[j][i] and i != j:
+                    D[i][j] = 1
+                    D[j][i] = 0
+                elif D[i][j] < D[j][i] and i != j:
+                    D[j][i] = 1
+                    D[i][j] = 0
+        '''
         V = np.transpose(D.astype(float))
+        n = D.shape[0]
         wins = [sum(D[i]) for i in range(0,D.shape[0])]
         losses = [sum(np.transpose(D)[i]) for i in range(0,D.shape[0])]
         totalevents = [wins[i] + losses[i] for i in range(0,D.shape[0])]
-        print("totalevents: ", totalevents)
+        #print("totalevents: ", totalevents)
         maxevents = max(totalevents)
-        print(V)
+        #print(V)
         for i in range(V.shape[0]):
             if sum(V[i]) != 0:
                 V[i] = np.divide(V[i], sum(V[i]))
-                V[i][i] = maxevents - sum(V[i])
-                V[i] = np.divide(V[i], maxevents)
+            else:
+                V[i] = np.zeros(n)
+                V[i][i] = 1
         print(V)
         eigenvals, eigenvecs = np.linalg.eig(V)
-        print(eigenvals)
-        print(eigenvecs)
-        indiciesreverse = eigenvals.argsort()[::-1]
-        print(eigenvecs[indiciesreverse[0]])
+        #print("eigenvals:\n", eigenvals)
+        #for i in range(len(eigenvecs)):
+        #    print(eigenvecs[i])
+        #print("eigenvecs:\n", eigenvecs)
+        print("Max eigenvalue/vector:", max(eigenvals), eigenvecs[np.argmax(eigenvals)]/np.linalg.norm(eigenvecs[np.argmax(eigenvals)]))
+        if True in np.iscomplex(eigenvecs[np.argmax(eigenvals)]):
+            print("Complex rating vector")
+            return
+        return np.argsort(eigenvecs[np.argmax(eigenvals)])
     
     def __str__(self):
         return "MarkovChainRankingAlgorithm"
@@ -647,44 +663,27 @@ class ProblemInstance:
 ######## MAIN, FOR DEBUG ONLY ########
     
 def main():
+    mcra = MarkovChainRankingAlgorithm()
+    
     testmatrix = PerfectBinarySource(10)
     perf = testmatrix.init_D()
-    print(perf)
     
-    def noise_D(D, noise_percent):
-        Dcopy = D
-        for i in range(D.shape[0]):
-            for j in range(i+1, D.shape[0]):
-                if  random.random() <= noise_percent:
-                    temp = Dcopy[i,j]
-                    Dcopy[i,j] = Dcopy[j,i]/2
-                    Dcopy[j,i] = temp
-        return Dcopy
-    noisy = noise_D(perf, .533333)
-    print(noisy)
-    #k, details = pyrankability.hillside.bilp(noisy, num_random_restarts=10, find_pair=True)
-    #print(k)
-    #print(details["P"])
-    #print(l2dm.MaxL2Difference(details["P"]))
-    
-    eloTournament = SynthELOTournamentSource(16, 5, 80, 800)
-    smalleloTournament = SynthELOTournamentSource(4, 5, 80, 800)
-    l2dm = L2DifferenceMetric()
-    
+    eloTournament = SynthELOTournamentSource(10, 1, 160, 800)
     eloMatrix = eloTournament.init_D()
-    smalleloMatrix = smalleloTournament.init_D()
+    eloTournament5 = SynthELOTournamentSource(5, 1, 160, 800)
+    eloMatrix5 = eloTournament5.init_D()
+    
+    fivegood = np.array([[0,1,1,1,0],
+                        [0,0,1,1,1],
+                        [0,1,0,1,1],
+                        [0,0,0,0,1],
+                        [3,3,3,3,0]])
+    
+    print(eloMatrix5)
+    print(mcra.rank(eloMatrix5))
     print(eloMatrix)
-    #k, details = pyrankability.hillside.bilp_two_most_distant(eloMatrix)
-    #print(details["perm_x"],details["perm_y"])
-    #print(details["x"],details["y"])
-    k, details = pyrankability.hillside.bilp(eloMatrix, num_random_restarts=10, find_pair=True)
-    print(k)
-    print(set(details["P"]))
-    print(l2dm.MaxL2Difference(details["P"]))
-    k, details = pyrankability.hillside.bilp(smalleloMatrix, num_random_restarts=10, find_pair=True)
-    print(k)
-    print(set(details["P"]))
-    print(l2dm.MaxL2Difference(details["P"]))
+    print(mcra.rank(eloMatrix))
+    
     
 
     
