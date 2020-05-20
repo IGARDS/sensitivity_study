@@ -561,6 +561,27 @@ class MarkovChainRankingAlgorithm(RankingAlgorithm):
     
     def __str__(self):
         return "MarkovChainRankingAlgorithm"
+    
+class MarkovModifiedRankingAlgorithm(RankingAlgorithm):
+    def rank(self, D):
+        V = D.astype(float)
+        n = D.shape[0]
+        wins = [sum(D[i]) for i in range(0,D.shape[0])]
+        losses = [sum(np.transpose(D)[i]) for i in range(0,D.shape[0])]
+        totalevents = [wins[i] + losses[i] for i in range(0,D.shape[0])]
+        maxevents = max(totalevents)
+        #print(V)
+        for i in range(V.shape[0]):
+            if sum(V[i]) != 0:
+                V[i] = np.divide(V[i], sum(V[i]))
+            else:
+                V[i] = np.zeros(n)
+                V[i][i] = 1
+        #print(V)
+        return np.argsort(V.sum(axis=0))
+        
+    def __str__(self):
+        return "MarkovModifiedRankingAlgorithm"
 
     
 ####### SOME HELPFUL GLOBALS #######
@@ -664,14 +685,19 @@ class ProblemInstance:
     
 def main():
     mcra = MarkovChainRankingAlgorithm()
+    mmra = MarkovModifiedRankingAlgorithm()
     
     testmatrix = PerfectBinarySource(10)
     perf = testmatrix.init_D()
     
-    eloTournament = SynthELOTournamentSource(10, 1, 160, 800)
+    eloTournament = SynthELOTournamentSource(10, 5, 260, 800)
     eloMatrix = eloTournament.init_D()
-    eloTournament5 = SynthELOTournamentSource(5, 1, 160, 800)
+    eloTournament5 = SynthELOTournamentSource(5, 5, 260, 800)
     eloMatrix5 = eloTournament5.init_D()
+    eloTournament2 = SynthELOTournamentSource(3, 5, 260, 800)
+    eloMatrix2 = eloTournament2.init_D()
+    eloTournament4 = SynthELOTournamentSource(4, 5, 260, 800)
+    eloMatrix4 = eloTournament4.init_D()
     
     fivegood = np.array([[0,1,1,1,0],
                         [0,0,1,1,1],
@@ -679,10 +705,17 @@ def main():
                         [0,0,0,0,1],
                         [3,3,3,3,0]])
     
+    np.set_printoptions(formatter={'float': lambda x: str(x)})
+    
+    
     print(eloMatrix5)
-    print(mcra.rank(eloMatrix5))
+    print(mmra.rank(eloMatrix5))
     print(eloMatrix)
-    print(mcra.rank(eloMatrix))
+    print(mmra.rank(eloMatrix))
+    print(eloMatrix2)
+    print(mmra.rank(eloMatrix2))
+    print(eloMatrix4)
+    print(mmra.rank(eloMatrix4))
     
     
 
