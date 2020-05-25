@@ -3,8 +3,10 @@ import math
 import random
 import sys
 import itertools
-sys.path.append("~/rankability_toolbox")
-import pyrankability
+#sys.path.append("~/rankability_toolbox")
+#import pyrankability
+from pyrankability_dev.rank import solve
+from pyrankability_dev.search import solve_pair_min_tau
 import json
 from tqdm import tqdm
 from utilities import *
@@ -388,7 +390,7 @@ class PerfectWeightedSource(DataSource):
         i_arr, j_arr = np.triu_indices(self.n,1)
         for idx in range(len(i_arr)):
             i, j = i_arr[idx], j_arr[idx]
-            D[i, j] = self.scale * (self.n-i+j)
+            D[i, j] = self.scale * (-i+j)
         return D
     
     def __str__(self):
@@ -465,7 +467,7 @@ class RankingAlgorithm:
 class LOPRankingAlgorithm(RankingAlgorithm):
     
     def rank(self, D):
-        k, details = pyrankability.lop.bilp(D)
+        k, details = solve(D)
         # This could return the full P set or randomly sample from it rather
         # than reporting the first it finds.
         return details["P"][0]
@@ -568,19 +570,15 @@ class ProblemInstance:
     def get_optimal_rankings(self,
                              model="lop",
                              num_random_restarts=0):
-        if model == "lop":
-            return pyrankability.lop.bilp(self.get_D(), num_random_restarts=num_random_restarts)
-        elif model == "hillside":
-             return pyrankability.hillside.bilp(self.get_D(), num_random_restarts=num_random_restarts)
+        if model in ["lop", "hillside"]:
+             return solve(self.get_D(), method=model, num_random_restarts=num_random_restarts)
         else:
             raise ValueError("Unrecognized model name '{}' should be one of 'lop' or 'hillside'".format(model))
     
     def get_most_distant_optimal_rankings(self,
                                           model="lop"):
-        if model == "lop":
-            return pyrankability.lop.bilp_two_most_distant(self.get_D(), verbose=False)
-        elif model == "hillside":
-             return pyrankability.hillside.bilp_two_most_distant(self.get_D(), verbose=False)
+        if model in ["lop","hillside"]:
+            return solve_pair_min_tau(self.get_D(), method=model, verbose=False)
         else:
             raise ValueError("Unrecognized model name '{}' should be one of 'lop' or 'hillside'".format(model))
     
@@ -588,22 +586,29 @@ class ProblemInstance:
                      ranking_algorithms=ALL_RANKING_ALGS,
                      noise_generators=LOW_INTENSITY_NOISE_GENS,
                      model="lop",
-                     num_random_restarts=50,
+                     num_random_restarts=200,
                      n_sensitivity_trials=50):
         D = self.get_D(refresh=True)
         k, details = self.get_optimal_rankings(model=model,
                                                num_random_restarts=num_random_restarts)
         P = details["P"]
         k_furthest, details_furthest = self.get_most_distant_optimal_rankings(model=model)
-        P.append(details_furthest["perm_x"])
-        P.append(details_furthest["perm_y"])
+        if details_furthest is not None:
+            P.append(details_furthest["perm_x"])
+            P.append(details_furthest["perm_y"])
         data = get_P_stats(P)
         data["k"] = k
+        if model == "lop":
+            data["degree_of_linearity"] = k / np.sum(D)
+        else:
+            k_lop, _ = self.get_optimal_rankings(model="lop", num_random_restarts=0)
+            data["degree_of_linearity"] = k_lop / np.sum(D)
         data["model"] = model
         data["D"] = json.dumps(D.tolist())
         data["Source"] = str(self.dataSource)
         data["n_items"] = D.shape[0]
         data["P"] = str(list(set(P)))
+        data["P_repeats"] = str(P)
         
         for rankingAlg in ranking_algorithms:
             for noiseGenerator in noise_generators:
@@ -611,10 +616,11 @@ class ProblemInstance:
                                             noiseGenerator,
                                             model=model,
                                             n_trials=n_sensitivity_trials)
+                sensitivities = (1.0 - np.array(taus)) / 2.0
                 mean_tau_name = "mean_sensitivity({},{})".format(str(rankingAlg), str(noiseGenerator))
-                data[mean_tau_name] = np.mean(taus)
+                data[mean_tau_name] = np.mean(sensitivities)
                 std_tau_name = "std_sensitivity({},{})".format(str(rankingAlg), str(noiseGenerator))
-                data[std_tau_name] = np.std(taus)
+                data[std_tau_name] = np.std(sensitivities)
         
         return data
     
