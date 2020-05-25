@@ -30,6 +30,7 @@ def kendall_w(expt_ratings):
     S = n*np.var(rating_sums)
     return "kendall_w", 12*S/denom
 
+# "Lowerbound" because many random restarts may not find full P
 def p_len(P):
     return "p_lowerbound", len(P)
 
@@ -81,7 +82,8 @@ def get_P_stats(P):
     return results
 
 ######## RANKABILITY METRICS ########
-    
+# Not currently employed by the core testbed
+
 class RankabilityMetric:
     
     def compute(self, k, details):
@@ -587,6 +589,7 @@ class MarkovModifiedRankingAlgorithm(RankingAlgorithm):
 
     
 ####### SOME HELPFUL GLOBALS #######
+# These are the defaults used by the testbed
 
 ALL_RANKING_ALGS = [LOPRankingAlgorithm(), MasseyRankingAlgorithm(), ColleyRankingAlgorithm()]
 LOW_INTENSITY_NOISE_GENS = [SwapNoise(0.05), BinaryFlipNoise(0.05)]
@@ -679,6 +682,8 @@ class ProblemInstance:
             range_iter = range(n_trials)
         
         taus = []
+        # Measure the similarity between original ranking and post-noise ranking
+        # for many samples of noise.
         for trial_index in range_iter:
             D_noisy = noiseGenerator.apply_noise(D)
             noisy_ranking = rankingAlg.rank(D_noisy)
