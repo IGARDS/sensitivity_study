@@ -353,13 +353,21 @@ class LOLib(DataSource):
         self.n = 0
         self.file_name = file_name
         self.full_path = full_path
+    
+    def get_filepath(self):
+        if self.full_path:
+            return self.file_name
+        else:
+            return "src/lolib_data/" + self.file_name
+    
+    def get_n(self):
+        if self.n is None or self.n < 1:
+            with open(self.get_filepath(), 'r') as f:
+                self.n = int(f.readline())
+        return self.n
         
     def init_D(self):
-        if self.full_path:
-            filepath = self.file_name
-        else:
-            filepath = "src/lolib_data/" + self.file_name
-        with open(filepath, 'r') as f:
+        with open(self.get_filepath(), 'r') as f:
             unparsed = f.read().splitlines()
         self.n = int(unparsed[0]) #0th element is dim of D
         elements = [row.split(' ') for row in unparsed[1:]]
