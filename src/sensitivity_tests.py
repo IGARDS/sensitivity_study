@@ -618,16 +618,6 @@ class MarkovRatingAlgorithm(RankingAlgorithm):
 
 class MarkovChainRankingAlgorithm(RankingAlgorithm):
     def rank(self, D):
-        #f = np.vectorize(lambda x: 1 if x > 0 else 0)
-        '''for i in range(D.shape[0]):
-            for j in range(i, D.shape[1]):
-                if D[i][j] > D[j][i] and i != j:
-                    D[i][j] = 1
-                    D[j][i] = 0
-                elif D[i][j] < D[j][i] and i != j:
-                    D[j][i] = 1
-                    D[i][j] = 0
-        '''
         V = np.transpose(D.astype(float))
         n = D.shape[0]
         wins = [sum(D[i]) for i in range(0,D.shape[0])]
@@ -827,5 +817,5 @@ def main():
 
     
 
-if __name__ == "__main__":
-   main()
+#if __name__ == "__main__":
+#   main()
