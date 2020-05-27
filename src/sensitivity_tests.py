@@ -511,6 +511,28 @@ class ColleyRankingAlgorithm(RankingAlgorithm):
     
     def __str__(self):
         return "ColleyRankingAlgorithm"
+    
+class ColleyRatingAlgorithm(RankingAlgorithm):
+    def rank(self, D):
+        wins = [sum(D[i]) for i in range(0,D.shape[0])]
+        losses = [sum(np.transpose(D)[i]) for i in range(0,D.shape[0])]
+        totalevents = [wins[i] + losses[i] for i in range(0,D.shape[0])]
+        b = [1 + (wins[i] - losses[i])/2 for i in range(0,D.shape[0])]
+        C = np.zeros(D.shape)
+        for i in range(0,D.shape[0]):
+            C[i][i] = 2 + totalevents[i]
+        for x in range(D.shape[0]):
+            for y in range(D.shape[1]):
+                if x != y:
+                    C[x][y] = (D[x][y] + D[y][x]) * -1
+        r = np.linalg.solve(C, b)
+        r = sorted([(r[i - 1], i) for i in range(1, D.shape[0] + 1)])
+        retvec = [r[i][1]-1 for i in range(len(r)-1, -1, -1)]
+        #returns a rating, ranking tuple
+        return ([r[i][0] for i in range(len(r))][::-1], retvec)
+    
+    def __str__(self):
+        return "ColleyRatingAlgorithm"
 
 
 class MasseyRankingAlgorithm(RankingAlgorithm):
@@ -556,11 +578,43 @@ class MasseyRatingAlgorithm(RankingAlgorithm):
         print(r)
         r = sorted([(r[i - 1], i) for i in range(1, D.shape[0] + 1)])
         retvec = [r[i][1]-1 for i in range(len(r)-1, -1, -1)]
-        return ([r[i][0] for i in range(len(r))] , retvec)
+        return ([r[i][0] for i in range(len(r))][::-1], retvec)
     
     def __str__(self):
-        return "MasseyRankingAlgorithm"
+        return "MasseyRatingAlgorithm"
 
+class MarkovRatingAlgorithm(RankingAlgorithm):
+    def rank(self, D):
+        V = np.transpose(D.astype(float))
+        n = D.shape[0]
+        wins = [sum(D[i]) for i in range(0,D.shape[0])]
+        losses = [sum(np.transpose(D)[i]) for i in range(0,D.shape[0])]
+        totalevents = [wins[i] + losses[i] for i in range(0,D.shape[0])]
+        maxevents = max(totalevents)
+        for i in range(V.shape[0]):
+            if sum(V[i]) != 0:
+                V[i] = np.divide(V[i], sum(V[i]))
+            else:
+                V[i] = np.zeros(n)
+                V[i][i] = 1
+        #print(V)
+        #eigenvals, eigenvecs = np.linalg.eig(np.transpose(V))
+        #print("eigenvals transpose:\n", eigenvals)
+        #for i in range(len(eigenvecs)):
+        #    print(eigenvecs[i])
+            
+        eigenvals, eigenvecs = np.linalg.eig(V)
+        #print("\neigenvals:\n", eigenvals)
+        #for i in range(len(eigenvecs)):
+        #    print(eigenvecs[i])
+        #print("Max eigenvalue/vector:", max(eigenvals), eigenvecs[np.argmax(eigenvals)]/np.linalg.norm(eigenvecs[np.argmax(eigenvals)]))
+        if True in np.iscomplex(eigenvecs[np.argmax(eigenvals)]):
+            print("Complex rating vector")
+            return
+        return (np.sort(eigenvecs[np.argmax(eigenvals)])[::-1] ,np.argsort(eigenvecs[np.argmax(eigenvals)])[::-1])
+    
+    def __str__(self):
+        return "MarkovRatingAlgorithm"
 
 class MarkovChainRankingAlgorithm(RankingAlgorithm):
     def rank(self, D):
@@ -737,7 +791,7 @@ class ProblemInstance:
 def main():
     mcra = MarkovChainRankingAlgorithm()
     mmra = MarkovModifiedRankingAlgorithm()
-    mra = MasseyRatingAlgorithm()
+    mra = MarkovRatingAlgorithm()
     
     testmatrix = PerfectBinarySource(10)
     perf = testmatrix.init_D()
@@ -748,7 +802,7 @@ def main():
     eloMatrix5 = eloTournament5.init_D()
     eloTournament2 = SynthELOTournamentSource(3, 5, 260, 800)
     eloMatrix2 = eloTournament2.init_D()
-    eloTournament4 = SynthELOTournamentSource(4, 5, 260, 800)
+    eloTournament4 = SynthELOTournamentSource(4, 5, 560, 800)
     eloMatrix4 = eloTournament4.init_D()
     
     fivegood = np.array([[0,1,1,1,0],
@@ -764,10 +818,10 @@ def main():
     #print(mcra.rank(eloMatrix5))
     #print(eloMatrix)
     #print(mcra.rank(eloMatrix))
-    print(eloMatrix2)
-    print(mra.rank(eloMatrix2))
-    #print(eloMatrix4)
-    #print(mcra.rank(eloMatrix4))
+    #print(eloMatrix2)
+    #print(mra.rank(eloMatrix2))
+    print(eloMatrix4)
+    print(mra.rank(eloMatrix4))
     
     
 
