@@ -34,6 +34,7 @@ def kendall_w(expt_ratings):
 def p_len(P):
     return "p_lowerbound", len(P)
 
+#distances of vectors in p, by L2 aka Euclidean Norm
 def l2_dist_stats(P):
     p = len(P)
     max_dist = 0.0
@@ -110,6 +111,11 @@ class KendallWMetric(RankabilityMetric):
 
 
 class L2DifferenceMetric(RankabilityMetric):
+    """
+    This Rankability Metric is based on the Ratio of the L2 Distance between
+    two members of P to the maximum possible L2 Distance of ranking vectors.
+    The score is normalized based on k and the dimension of the ranking vectors.
+    """
     
     def __init__(self, strategy="max"):
         strategy=strategy.lower()
@@ -147,6 +153,8 @@ class L2DifferenceMetric(RankabilityMetric):
         p = len(P)
         n = len(P[0])
         dist = self.get_dist_stat(P)
+        #this returns our normalized distance. np.sqrt((n / 3) * (n**2 - 1)) is a formula
+        #for the maximum distance between rating vectors of dimension n.
         return 1.0 - (k / (n**3 - n**2) * (dist / np.sqrt((n / 3) * (n**2 - 1))))
     
 
@@ -483,8 +491,7 @@ class LOPRankingAlgorithm(RankingAlgorithm):
     
     def rank(self, D):
         k, details = solve(D)
-        # This could return the full P set or randomly sample from it rather
-        # than reporting the first it finds.
+        # This reports the first member of P it finds.
         return details["P"][0]
     
     def __str__(self):
@@ -493,15 +500,18 @@ class LOPRankingAlgorithm(RankingAlgorithm):
 
 class ColleyRankingAlgorithm(RankingAlgorithm):
     def rank(self, D):
+        #team events in arrays, where index i is for team i
         wins = [sum(D[i]) for i in range(0,D.shape[0])]
         losses = [sum(np.transpose(D)[i]) for i in range(0,D.shape[0])]
         totalevents = [wins[i] + losses[i] for i in range(0,D.shape[0])]
+        #this builds the b vector, which is 1 + wins-losses/2 for each team i
         b = [1 + (wins[i] - losses[i])/2 for i in range(0,D.shape[0])]
         C = np.zeros(D.shape)
         for i in range(0,D.shape[0]):
             C[i][i] = 2 + totalevents[i]
         for x in range(D.shape[0]):
             for y in range(D.shape[1]):
+                #all entries except the diagonal are -1 * total events between teams i and j
                 if x != y:
                     C[x][y] = (D[x][y] + D[y][x]) * -1
         r = np.linalg.solve(C, b)
@@ -514,15 +524,18 @@ class ColleyRankingAlgorithm(RankingAlgorithm):
     
 class ColleyRatingAlgorithm(RankingAlgorithm):
     def rank(self, D):
+        #team events in arrays, where index i is for team i
         wins = [sum(D[i]) for i in range(0,D.shape[0])]
         losses = [sum(np.transpose(D)[i]) for i in range(0,D.shape[0])]
         totalevents = [wins[i] + losses[i] for i in range(0,D.shape[0])]
+        #this builds the b vector, which is 1 + wins-losses/2 for each team i
         b = [1 + (wins[i] - losses[i])/2 for i in range(0,D.shape[0])]
         C = np.zeros(D.shape)
         for i in range(0,D.shape[0]):
             C[i][i] = 2 + totalevents[i]
         for x in range(D.shape[0]):
             for y in range(D.shape[1]):
+                #all entries except the diagonal are -1 * total events between teams i and j
                 if x != y:
                     C[x][y] = (D[x][y] + D[y][x]) * -1
         r = np.linalg.solve(C, b)
@@ -538,15 +551,18 @@ class ColleyRatingAlgorithm(RankingAlgorithm):
 class MasseyRankingAlgorithm(RankingAlgorithm):
     
     def rank(self, D):
+        #team events in arrays, where index i is for team i
         wins = [sum(D[i]) for i in range(0,D.shape[0])]
         losses = [sum(np.transpose(D)[i]) for i in range(0,D.shape[0])]
         totalevents = [wins[i] + losses[i] for i in range(0,D.shape[0])]
+        #this builds the b vector, which is 1 + wins-losses/2 for each team i
         b = [1 + (wins[i] - losses[i])/2 for i in range(0,D.shape[0])]
         C = np.zeros(D.shape)
         for i in range(0,D.shape[0]):
             C[i][i] = totalevents[i]
         for x in range(D.shape[0]):
             for y in range(D.shape[1]):
+                #all entries except the diagonal are -1 * total events between teams i and j
                 if x != y:
                     C[x][y] = (D[x][y] + D[y][x]) * -1
         C[D.shape[0] - 1] = np.ones(D.shape[0])
@@ -561,15 +577,19 @@ class MasseyRankingAlgorithm(RankingAlgorithm):
     
 class MasseyRatingAlgorithm(RankingAlgorithm):
     def rank(self, D):
+        #team events in arrays, where index i is for team i
         wins = [sum(D[i]) for i in range(0,D.shape[0])]
         losses = [sum(np.transpose(D)[i]) for i in range(0,D.shape[0])]
         totalevents = [wins[i] + losses[i] for i in range(0,D.shape[0])]
+        #this builds the b vector, which is 1 + wins-losses/2 for each team i
         b = [1 + (wins[i] - losses[i])/2 for i in range(0,D.shape[0])]
+        #building the Massey matrix, un-aptly named C
         C = np.zeros(D.shape)
         for i in range(0,D.shape[0]):
             C[i][i] = totalevents[i]
         for x in range(D.shape[0]):
             for y in range(D.shape[1]):
+                #all entries except the diagonal are -1 * total events between teams i and j
                 if x != y:
                     C[x][y] = (D[x][y] + D[y][x]) * -1
         C[D.shape[0] - 1] = np.ones(D.shape[0])
@@ -585,8 +605,10 @@ class MasseyRatingAlgorithm(RankingAlgorithm):
 
 class MarkovRatingAlgorithm(RankingAlgorithm):
     def rank(self, D):
+        #Transposed so now each row is the number of wins, not columns
         V = np.transpose(D.astype(float))
         n = D.shape[0]
+        #team events in arrays, where index i is for team i
         wins = [sum(D[i]) for i in range(0,D.shape[0])]
         losses = [sum(np.transpose(D)[i]) for i in range(0,D.shape[0])]
         totalevents = [wins[i] + losses[i] for i in range(0,D.shape[0])]
@@ -597,17 +619,7 @@ class MarkovRatingAlgorithm(RankingAlgorithm):
             else:
                 V[i] = np.zeros(n)
                 V[i][i] = 1
-        #print(V)
-        #eigenvals, eigenvecs = np.linalg.eig(np.transpose(V))
-        #print("eigenvals transpose:\n", eigenvals)
-        #for i in range(len(eigenvecs)):
-        #    print(eigenvecs[i])
-            
-        eigenvals, eigenvecs = np.linalg.eig(V)
-        #print("\neigenvals:\n", eigenvals)
-        #for i in range(len(eigenvecs)):
-        #    print(eigenvecs[i])
-        #print("Max eigenvalue/vector:", max(eigenvals), eigenvecs[np.argmax(eigenvals)]/np.linalg.norm(eigenvecs[np.argmax(eigenvals)]))
+        
         if True in np.iscomplex(eigenvecs[np.argmax(eigenvals)]):
             print("Complex rating vector")
             return
@@ -618,21 +630,15 @@ class MarkovRatingAlgorithm(RankingAlgorithm):
 
 class MarkovChainRankingAlgorithm(RankingAlgorithm):
     def rank(self, D):
+        #Transposed so that team i's wins and losses are in column and row i respectively
         V = np.transpose(D.astype(float))
         n = D.shape[0]
-        wins = [sum(D[i]) for i in range(0,D.shape[0])]
-        losses = [sum(np.transpose(D)[i]) for i in range(0,D.shape[0])]
-        totalevents = [wins[i] + losses[i] for i in range(0,D.shape[0])]
-        #print("totalevents: ", totalevents)
-        maxevents = max(totalevents)
-        #print(V)
         for i in range(V.shape[0]):
             if sum(V[i]) != 0:
                 V[i] = np.divide(V[i], sum(V[i]))
             else:
                 V[i] = np.zeros(n)
                 V[i][i] = 1
-        print(V)
         eigenvals, eigenvecs = np.linalg.eig(np.transpose(V))
         print("eigenvals transpose:\n", eigenvals)
         for i in range(len(eigenvecs)):
@@ -656,10 +662,6 @@ class MarkovModifiedRankingAlgorithm(RankingAlgorithm):
     def rank(self, D):
         V = D.astype(float)
         n = D.shape[0]
-        wins = [sum(D[i]) for i in range(0,D.shape[0])]
-        losses = [sum(np.transpose(D)[i]) for i in range(0,D.shape[0])]
-        totalevents = [wins[i] + losses[i] for i in range(0,D.shape[0])]
-        maxevents = max(totalevents)
         for i in range(V.shape[0]):
             if sum(V[i]) != 0:
                 V[i] = np.divide(V[i], sum(V[i]))
@@ -811,7 +813,7 @@ def main():
     #print(eloMatrix2)
     #print(mra.rank(eloMatrix2))
     print(eloMatrix4)
-    print(mra.rank(eloMatrix4))
+    print(mcra.rank(eloMatrix4))
     
     
 
