@@ -608,11 +608,6 @@ class MarkovRatingAlgorithm(RankingAlgorithm):
         #Transposed so now each row is the number of wins, not columns
         V = np.transpose(D.astype(float))
         n = D.shape[0]
-        #team events in arrays, where index i is for team i
-        wins = [sum(D[i]) for i in range(0,D.shape[0])]
-        losses = [sum(np.transpose(D)[i]) for i in range(0,D.shape[0])]
-        totalevents = [wins[i] + losses[i] for i in range(0,D.shape[0])]
-        maxevents = max(totalevents)
         for i in range(V.shape[0]):
             if sum(V[i]) != 0:
                 V[i] = np.divide(V[i], sum(V[i]))
