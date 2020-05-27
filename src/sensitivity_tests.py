@@ -3,10 +3,10 @@ import math
 import random
 import sys
 import itertools
-#sys.path.append("~/rankability_toolbox")
-#import pyrankability
-from pyrankability_dev.rank import solve
-from pyrankability_dev.search import solve_pair_min_tau
+sys.path.append("~/rankability_toolbox_dev")
+import pyrankability
+from pyrankability.rank import solve
+from pyrankability.search import solve_pair_min_tau
 import json
 from tqdm import tqdm
 from utilities import *
@@ -536,6 +536,30 @@ class MasseyRankingAlgorithm(RankingAlgorithm):
     
     def __str__(self):
         return "MasseyRankingAlgorithm"
+    
+class MasseyRatingAlgorithm(RankingAlgorithm):
+    def rank(self, D):
+        wins = [sum(D[i]) for i in range(0,D.shape[0])]
+        losses = [sum(np.transpose(D)[i]) for i in range(0,D.shape[0])]
+        totalevents = [wins[i] + losses[i] for i in range(0,D.shape[0])]
+        b = [1 + (wins[i] - losses[i])/2 for i in range(0,D.shape[0])]
+        C = np.zeros(D.shape)
+        for i in range(0,D.shape[0]):
+            C[i][i] = totalevents[i]
+        for x in range(D.shape[0]):
+            for y in range(D.shape[1]):
+                if x != y:
+                    C[x][y] = (D[x][y] + D[y][x]) * -1
+        C[D.shape[0] - 1] = np.ones(D.shape[0])
+        b[D.shape[0] - 1] = 0
+        r = np.linalg.solve(C, b)
+        print(r)
+        r = sorted([(r[i - 1], i) for i in range(1, D.shape[0] + 1)])
+        retvec = [r[i][1]-1 for i in range(len(r)-1, -1, -1)]
+        return ([r[i][0] for i in range(len(r))] , retvec)
+    
+    def __str__(self):
+        return "MasseyRankingAlgorithm"
 
 
 class MarkovChainRankingAlgorithm(RankingAlgorithm):
@@ -565,10 +589,15 @@ class MarkovChainRankingAlgorithm(RankingAlgorithm):
                 V[i] = np.zeros(n)
                 V[i][i] = 1
         print(V)
+        eigenvals, eigenvecs = np.linalg.eig(np.transpose(V))
+        print("eigenvals transpose:\n", eigenvals)
+        for i in range(len(eigenvecs)):
+            print(eigenvecs[i])
+            
         eigenvals, eigenvecs = np.linalg.eig(V)
-        #print("eigenvals:\n", eigenvals)
-        #for i in range(len(eigenvecs)):
-        #    print(eigenvecs[i])
+        print("\neigenvals:\n", eigenvals)
+        for i in range(len(eigenvecs)):
+            print(eigenvecs[i])
         #print("eigenvecs:\n", eigenvecs)
         print("Max eigenvalue/vector:", max(eigenvals), eigenvecs[np.argmax(eigenvals)]/np.linalg.norm(eigenvecs[np.argmax(eigenvals)]))
         if True in np.iscomplex(eigenvecs[np.argmax(eigenvals)]):
@@ -587,14 +616,12 @@ class MarkovModifiedRankingAlgorithm(RankingAlgorithm):
         losses = [sum(np.transpose(D)[i]) for i in range(0,D.shape[0])]
         totalevents = [wins[i] + losses[i] for i in range(0,D.shape[0])]
         maxevents = max(totalevents)
-        #print(V)
         for i in range(V.shape[0]):
             if sum(V[i]) != 0:
                 V[i] = np.divide(V[i], sum(V[i]))
             else:
                 V[i] = np.zeros(n)
                 V[i][i] = 1
-        #print(V)
         return np.argsort(V.sum(axis=0))
         
     def __str__(self):
@@ -710,6 +737,7 @@ class ProblemInstance:
 def main():
     mcra = MarkovChainRankingAlgorithm()
     mmra = MarkovModifiedRankingAlgorithm()
+    mra = MasseyRatingAlgorithm()
     
     testmatrix = PerfectBinarySource(10)
     perf = testmatrix.init_D()
@@ -732,18 +760,18 @@ def main():
     np.set_printoptions(formatter={'float': lambda x: str(x)})
     
     
-    print(eloMatrix5)
-    print(mmra.rank(eloMatrix5))
-    print(eloMatrix)
-    print(mmra.rank(eloMatrix))
+    #print(eloMatrix5)
+    #print(mcra.rank(eloMatrix5))
+    #print(eloMatrix)
+    #print(mcra.rank(eloMatrix))
     print(eloMatrix2)
-    print(mmra.rank(eloMatrix2))
-    print(eloMatrix4)
-    print(mmra.rank(eloMatrix4))
+    print(mra.rank(eloMatrix2))
+    #print(eloMatrix4)
+    #print(mcra.rank(eloMatrix4))
     
     
 
     
 
-#if __name__ == "__main__":
-#   main()
+if __name__ == "__main__":
+   main()
