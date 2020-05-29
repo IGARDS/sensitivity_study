@@ -8,7 +8,8 @@ The core of the work in this directory supports a single workflow called the Sen
 
 1. **sensitivity_tests.py:** Contains the framework for measuring sensitivity and other metrics of a dataset. It also contains the code for loading / sampling initial data and perturbations. If you are curious about how a specific metric is calculated or where the data / noise are coming from, this is the place to look. (This framework is also supported by the methods implemented in **utilities.py**.)
 2. **rankability_sensitivity_tests.ipynb:** The notebook which utilizes the above framework to collect and store data about the sensitivity and rankability of data.
-3. **sensitivity_analysis.ipynb:** The notebook which analyzes the data collected by the above notebook and looks for correlations between measures of rankability and sensitivity.
+3. **rankability_sensitivity_tests_real_data.ipynb:** A clone of the above notebook with some parameters changed to load in real data.
+4. **sensitivity_analysis.ipynb:** The notebook which analyzes the data collected by the above rankability_sensitivity_tests notebook and looks for correlations between measures of rankability and sensitivity.
 
 ## Other Experiments
 
@@ -24,6 +25,11 @@ In addition to the sensitivity testbed, this directory also contains many stand-
 - **noise_level_sensitivity_tests.ipynb** (Early prototype exploring relationship between sensitivity and noise strength)
 
 
+# Setup
+- Gurobi (TODO: explain gurobi setup)
+- pyrankability_dev (TODO: explain pyrankability_dev setup)
+- other requirements (TODO: list other requirements and the pip command to install them)
+
 # TODO:
 
 These files have not yet been explained in this README:
@@ -32,5 +38,3 @@ These files have not yet been explained in this README:
 - method_tests.ipynb
 - matrix_visualizations.ipynb
 - L2_Most_Sampled_Tests.ipynb
-
-Additionally, this readme should explain how to setup the requirements for and execute the sensitivity testbed. (Gurobi, pyrankability_dev, important variables/settings, etc.)

@@ -710,6 +710,7 @@ class ProblemInstance:
                      num_random_restarts=200,
                      n_sensitivity_trials=50):
         D = self.get_D(refresh=True)
+        total_weight = np.sum(D)
         k, details = self.get_optimal_rankings(model=model,
                                                num_random_restarts=num_random_restarts)
         P = details["P"]
@@ -720,10 +721,10 @@ class ProblemInstance:
         data = get_P_stats(P)
         data["k"] = k
         if model == "lop":
-            data["degree_of_linearity"] = k / np.sum(D)
+            data["degree_of_linearity"] = k / total_weight
         else:
             k_lop, _ = self.get_optimal_rankings(model="lop", num_random_restarts=0)
-            data["degree_of_linearity"] = k_lop / np.sum(D)
+            data["degree_of_linearity"] = k_lop / total_weight
         data["model"] = model
         data["D"] = json.dumps(D.tolist())
         data["Source"] = str(self.dataSource)
@@ -732,11 +733,19 @@ class ProblemInstance:
         data["P_repeats"] = str(P)
         
         for rankingAlg in ranking_algorithms:
+            perfect_ranking = rankingAlg.rank(D)
+            data["{}_DOL".format(str(rankingAlg))] = np.triu(D[:,perfect_ranking][perfect_ranking,:],1).sum() / total_weight
             for noiseGenerator in noise_generators:
-                taus = self.get_sensitivity(rankingAlg,
-                                            noiseGenerator,
-                                            model=model,
-                                            n_trials=n_sensitivity_trials)
+                # Measure the similarity between original ranking and post-noise ranking
+                # for many samples of noise.
+                taus = []
+                for trial_index in range(n_sensitivity_trials):
+                    D_noisy = noiseGenerator.apply_noise(D)
+                    noisy_ranking = rankingAlg.rank(D_noisy)
+                    tau = kendall_tau(perfect_ranking, noisy_ranking)
+                    taus.append(tau)
+                
+                # Transforms taus into "sensitivity scores" such that higher values mean more sensitive to noise
                 sensitivities = (1.0 - np.array(taus)) / 2.0
                 mean_tau_name = "mean_sensitivity({},{})".format(str(rankingAlg), str(noiseGenerator))
                 data[mean_tau_name] = np.mean(sensitivities)
@@ -744,34 +753,6 @@ class ProblemInstance:
                 data[std_tau_name] = np.std(sensitivities)
         
         return data
-    
-    def get_sensitivity(self,
-                        rankingAlg,
-                        noiseGenerator,
-                        model="lop",
-                        n_trials=100,
-                        progress_bar=False,
-                        refresh=False):
-        # Load in the initial D matrix and get a ranking without noise
-        D = self.get_D(refresh)
-        perfect_ranking = rankingAlg.rank(D)
-        
-        # Setup the progress bar if needed
-        if progress_bar:
-            range_iter = tqdm(range(n_trials), ascii=True)
-        else:
-            range_iter = range(n_trials)
-        
-        taus = []
-        # Measure the similarity between original ranking and post-noise ranking
-        # for many samples of noise.
-        for trial_index in range_iter:
-            D_noisy = noiseGenerator.apply_noise(D)
-            noisy_ranking = rankingAlg.rank(D_noisy)
-            tau = kendall_tau(perfect_ranking, noisy_ranking)
-            taus.append(tau)
-        
-        return taus
 
 ######## MAIN, FOR DEBUG ONLY ########
     
