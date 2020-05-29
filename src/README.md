@@ -17,6 +17,7 @@ In addition to the sensitivity testbed, this directory also contains many stand-
 1. **PermutationToPMapping.ipynb:** Experiment to determine whether each optimal ranking of P was equally likely to be found by Gurobi after randomly permuting D. **Conclusion: Yes, randomly permuting D results in a uniformly random sample from the P set.**
 2. **kendall_tau_speed_test.ipynb:** Experiment to determine which implementation of kendall_tau is most efficient **Conclusion: stats.kendall_tau() with np.argsort is faster than our implementation.**
 3. **massey_colley_proximity_to_P.ipynb:** Experiment to determine whether Massey and Colley produce rankings close-to/inside P or if they produce wildly different rankings. **Conclusion: *NOT CONCLUSIVE, TO BE REPEATED WITH FULL P SET***
+4. **cardinality_p.ipynb** Experiment to determine how often LOLib (i.e. real-world) datasets have 1 or >1 optimal ranking vector. **Conclusion: 4/37 completed solver, where all 4 have >1 ranking vector.**
 
 ## Out-dated Files
 
