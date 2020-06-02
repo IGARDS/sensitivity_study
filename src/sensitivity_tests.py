@@ -286,7 +286,7 @@ class BootstrapResamplingNoise(NoiseGenerator):
         # Select the elements to be resampled and the bootstrap samples to use
         num_offdiag = len(i_arr)
         indices = random.sample(range(num_offdiag), num_resampled) # Without replacement
-        if byRow:
+        if self.byRow:
             # Replaces elements from ones in the same row (resampling only within the row)
             bootstrap = np.random.randint(n-1, size=num_resampled) # With replacement
             for idx, rel_idx in enumerate(indices):
