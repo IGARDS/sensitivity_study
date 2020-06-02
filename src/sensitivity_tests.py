@@ -733,14 +733,14 @@ class ProblemInstance:
                     noisy_ranking = rankingAlg.rank(D_noisy)
                     tau = kendall_tau(perfect_ranking, noisy_ranking)
                     taus.append(tau)
-                    rho = stats.spearmanr(perfect_ranking, noisy_ranking)
+                    rho = spearman_r(perfect_ranking, noisy_ranking)
                     rhos.append(rho)
                 
                 # Transforms taus into "sensitivity scores" such that higher values mean more sensitive to noise
                 sensitivities = (1.0 - np.array(taus)) / 2.0
-                mean_tau_name = "mean_sensitivity({},{})".format(str(rankingAlg), str(noiseGenerator))
+                mean_tau_name = "mean_tau_sensitivity({},{})".format(str(rankingAlg), str(noiseGenerator))
                 data[mean_tau_name] = np.mean(sensitivities)
-                std_tau_name = "std_sensitivity({},{})".format(str(rankingAlg), str(noiseGenerator))
+                std_tau_name = "std_tau_sensitivity({},{})".format(str(rankingAlg), str(noiseGenerator))
                 data[std_tau_name] = np.std(sensitivities)
                 
                 sensitivitiesrho = (1.0 - np.array(rhos)) / 2.0
@@ -748,7 +748,6 @@ class ProblemInstance:
                 data[mean_rho_name] = np.mean(sensitivitiesrho)
                 std_rho_name = "std_rho_sensitivity({},{})".format(str(rankingAlg), str(noiseGenerator))
                 data[std_rho_name] = np.std(sensitivitiesrho)
-        print(data)
         
         return data
 
