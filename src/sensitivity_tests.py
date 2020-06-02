@@ -9,6 +9,7 @@ from pyrankability.rank import solve
 from pyrankability.search import solve_pair_min_tau
 import json
 from tqdm import tqdm
+from scipy import stats
 from utilities import *
 
 ######## STATISTICS OF P ########
@@ -366,7 +367,7 @@ class LOLib(DataSource):
         if self.full_path:
             return self.file_name
         else:
-            return "src/lolib_data/" + self.file_name
+            return "./lolib_data/" + self.file_name
     
     def get_n(self):
         if self.n is None or self.n < 1:
@@ -674,6 +675,7 @@ class MarkovModifiedRankingAlgorithm(RankingAlgorithm):
 
 ALL_RANKING_ALGS = [LOPRankingAlgorithm(), MasseyRankingAlgorithm(), ColleyRankingAlgorithm()]
 LOW_INTENSITY_NOISE_GENS = [SwapNoise(0.05), BinaryFlipNoise(0.05)]
+CORRELATION_METRICS = [kendall_tau, stats.spearmanr]
 
 ######## PROBLEM INSTANCE ########
 
@@ -706,6 +708,7 @@ class ProblemInstance:
     def collect_data(self,
                      ranking_algorithms=ALL_RANKING_ALGS,
                      noise_generators=LOW_INTENSITY_NOISE_GENS,
+                     correlation_metrics=CORRELATION_METRICS,
                      model="lop",
                      num_random_restarts=200,
                      n_sensitivity_trials=50):
@@ -739,11 +742,14 @@ class ProblemInstance:
                 # Measure the similarity between original ranking and post-noise ranking
                 # for many samples of noise.
                 taus = []
+                rhos = []
                 for trial_index in range(n_sensitivity_trials):
                     D_noisy = noiseGenerator.apply_noise(D)
                     noisy_ranking = rankingAlg.rank(D_noisy)
                     tau = kendall_tau(perfect_ranking, noisy_ranking)
                     taus.append(tau)
+                    rho = stats.spearmanr(perfect_ranking, noisy_ranking)
+                    rhos.append(rho)
                 
                 # Transforms taus into "sensitivity scores" such that higher values mean more sensitive to noise
                 sensitivities = (1.0 - np.array(taus)) / 2.0
@@ -751,6 +757,13 @@ class ProblemInstance:
                 data[mean_tau_name] = np.mean(sensitivities)
                 std_tau_name = "std_sensitivity({},{})".format(str(rankingAlg), str(noiseGenerator))
                 data[std_tau_name] = np.std(sensitivities)
+                
+                sensitivitiesrho = (1.0 - np.array(rhos)) / 2.0
+                mean_rho_name = "mean_rho_sensitivity({},{})".format(str(rankingAlg), str(noiseGenerator))
+                data[mean_rho_name] = np.mean(sensitivitiesrho)
+                std_rho_name = "std_rho_sensitivity({},{})".format(str(rankingAlg), str(noiseGenerator))
+                data[std_rho_name] = np.std(sensitivitiesrho)
+        print(data)
         
         return data
 
@@ -792,8 +805,5 @@ def main():
     print(mcra.rank(eloMatrix4))
     
     
-
-    
-
 #if __name__ == "__main__":
-#   main()
+#    main()
