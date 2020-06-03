@@ -3,10 +3,12 @@ import math
 import random
 import sys
 import itertools
-#sys.path.append("~/rankability_toolbox")
-#import pyrankability
-from pyrankability_dev.rank import solve
-from pyrankability_dev.search import solve_pair_min_tau
+sys.path = list(filter(lambda a: a != '~/rankability_toolbox_dev', sys.path))
+#sys.path.remove("~/rankability_toolbox")
+sys.path.append("~/rankability_toolbox_dev")
+import pyrankability
+from pyrankability.rank import solve
+from pyrankability.search import solve_pair_min_tau
 import json
 from tqdm import tqdm
 from scipy import stats
