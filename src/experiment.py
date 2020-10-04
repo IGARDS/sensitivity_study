@@ -4,8 +4,6 @@ import pandas as pd
 import numpy as np
 import networkx as nx
 import sklearn.linear_model as skl_lm
-from scipy.stats import pearsonr
-from scipy.stats import skew
 from sklearn.model_selection import cross_val_score, LeaveOneOut, GridSearchCV
 from sklearn.svm import SVR
 from sklearn.dummy import DummyRegressor
@@ -22,7 +20,6 @@ from pyrankability.construct import *
 sys.path.insert(0,"%s/sensitivity_study/src"%home)
 from sensitivity_tests import *
 from utilities import *
-from base import *
 
 
 # Somehow we need to figure out how to checkpoint intermediate results
