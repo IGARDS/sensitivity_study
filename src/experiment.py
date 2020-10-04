@@ -6,8 +6,7 @@ import networkx as nx
 import sklearn.linear_model as skl_lm
 from scipy.stats import pearsonr
 from scipy.stats import skew
-from sklearn.model_selection import cross_val_score
-from sklearn.model_selection import LeaveOneOut
+from sklearn.model_selection import cross_val_score,LeaveOneOut
 from sklearn.svm import SVR
 from sklearn.dummy import DummyRegressor
 from sklearn.model_selection import GridSearchCV
@@ -132,7 +131,6 @@ def get_target_stability(support1, support1, rankingMethod, corrMethod):
     # Measure the correlation between rankings of support1 and support2
     # Maybe at this point consider checkpointing the rankings as well
     # return the correlation (single float)
-    rankingMethod = rankingMethod()
     ranking1 = rankingMethod.rank(support1.fillna(0).values)
     ranking2 = rankingMethod.rank(support2.fillna(0).values)
     # rankings[year].append((ranking1,ranking2))
