@@ -116,7 +116,7 @@ def get_features_from_support(support):
     xstar.loc[:,:] = pyrankability.common.threshold_x(xstar.values)
     
     # eigens of the X* matrix
-    eig_vals, _ = np.linalg.eig(xstar.to_numpy())
+    eig_vals, _ = np.linalg.eig(xstar.values)
     features['max_eigenval_xstar'] = np.real(np.max(eig_vals))
     features['min_eigenval_xstar'] = np.real(np.min(eig_vals))
 
