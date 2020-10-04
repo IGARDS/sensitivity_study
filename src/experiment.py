@@ -50,7 +50,7 @@ def read_raw_pairwise(filepath, col_mapping):
     
     # Drop extra columns
     for col in df.columns:
-        if col not in col_mapping:
+        if col not in standard_columns:
             df.drop(col, axis=1, inplace=True)
     
     return df
@@ -116,7 +116,7 @@ def get_features_from_support(support):
     xstar.loc[:,:] = pyrankability.common.threshold_x(xstar.values)
     
     # eigens of the X* matrix
-    eig_vals, _ = np.linalg.eig(xstar.to_numpy())
+    eig_vals, _ = np.linalg.eig(xstar.values)
     features['max_eigenval_xstar'] = np.real(np.max(eig_vals))
     features['min_eigenval_xstar'] = np.real(np.min(eig_vals))
 
@@ -157,14 +157,26 @@ def eval_models(features, targets):
         best_features = None
         for ps in tqdm(exhaustive_feat_select, ascii=True):
             features = features.iloc[:, list(ps)]
-            grid = GridSearchCV(model,param_grid,refit=True,verbose=0, cv=3, iid=True, n_jobs=-1)
-            exhaustive[ps] = np.mean(np.abs(cross_val_score(grid, features, targets, scoring="neg_mean_absolute_error", cv=3, n_jobs=1)))
+            grid = GridSearchCV(model,
+                                param_grid,
+                                refit=True,
+                                verbose=0,
+                                cv=3,
+                                iid=True,
+                                n_jobs=-1)
+            exhaustive[ps] = np.mean(np.abs(cross_val_score(grid,
+                                                            features,
+                                                            targets,
+                                                            scoring="neg_mean_absolute_error",
+                                                            cv=3,
+                                                            n_jobs=1)))
             if exhaustive[ps] < best_score:
                 best_score = exhaustive[ps]
                 best_features = ps
 
-        # print(scores)
-        score_list.append(({"MAE": best_score, "best_feature_subset": [features.columns[f] for f in best_features]}, exhaustive))
+        score_list.append(({"MAE": best_score,
+                            "best_feature_subset": [features.columns[f] for f in best_features]},
+                           exhaustive))
     return score_list
 
 
