@@ -17,17 +17,35 @@ from sensitivity_tests import *
 from utilities import *
 from base import *
 
-
 # Somehow we need to figure out how to checkpoint intermediate results
 
+standard_cols = ["team1_name", "team2_name", "team1_score", "team2_score", "date"]
+
 # Function to read raw pairwise data into dataframe with standardized col names
-def read_raw_pairwise(filename, col_mapping):
-    # filename: where to find csv file
+def read_raw_pairwise(filepath, col_mapping):
+    # filepath: where to find csv file
     # col_mapping: dictionary that maps from standard col name to csv's col name
     #  example: {"team1_name": "home_team_name"}
     # also, csv should be ordered by "date" column if exists and drop date
     # returns sorted dataframe of pairwise comparisons
-    pass
+    
+    df = pd.read_csv(filepath)
+    
+    # Rename columns provided
+    for standard_col, custom_col in col_mapping:
+        if standard_col != custom_col:
+            df[standard_col] = df[custom_col]
+            df.drop(custom_col, axis=1, inplace=True)
+    
+    # Sort by date and drop date
+    df = df.sort_values(by='date').drop('date',axis=1)
+    
+    # Drop extra columns
+    for col in df.columns:
+        if col not in col_mapping:
+            df.drop(col, axis=1, inplace=True)
+    
+    return df
 
 def construct_support_matrix(pairwise_df,
                              fraction,
