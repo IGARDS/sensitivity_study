@@ -35,33 +35,32 @@ def construct_support_matrix(pairwise_df,
                              spread_thres = 2,
                              weight_indirect = 0.5):
     # pairwise_df: pairwise dataframe with rows in relevant order
+    # must include certain columns, see usage below
     # fraction: percent of data to use from beginning
     # direct_thres: the minimum difference in scores for direct to be counted
     # spread thres: the minimum difference in score differences for indirect to be counted
     # weight_indirect: the weighting of indirect evidence relative to direct
     # returns support matrix for the relevant teams
     #    (full matrix cut down to madness_teams for example)
-    for year in tqdm(games.keys()):
-    Ds[year] = {}
-    madness_teams = np.unique(list(games[year].team1_name.loc[games[year].team1_madness == 1]) + list(games[year].team2_name.loc[games[year].team2_madness == 1]))
-    game_list = list(games[year].index)
     
-    game_df = pd.DataFrame({"team1_name":games[year]['team1_name'],
-                            "team1_score":games[year]['points1'],
-                            "team1_H_A_N": games[year]['H_A_N1'],
-                            "team2_name":games[year]['team2_name'],
-                            "team2_score":games[year]['points2'],
-                            "team2_H_A_N": games[year]['H_A_N1'],
-                            "date": games[year]['date']
+    madness_teams = np.unique(list(pairwise_df.team1_name.loc[pairwise_df.team1_madness == 1]) + list(pairwise_df.team2_name.loc[pairwise_df.team2_madness == 1]))
+    game_list = list(pairwise_df.index)
+    
+    game_df = pd.DataFrame({"team1_name":pairwise_df['team1_name'],
+                            "team1_score":pairwise_df['points1'],
+                            "team1_H_A_N": pairwise_df['H_A_N1'],
+                            "team2_name":pairwise_df['team2_name'],
+                            "team2_score":pairwise_df['points2'],
+                            "team2_H_A_N": pairwise_df['H_A_N1'],
+                            "date": pairwise_df['date']
                            }).sort_values(by='date').drop('date',axis=1)
-    for frac in fracs:
-        upper = int(len(game_df)*frac)
-        game_df_sample = game_df.iloc[:upper,:]
-        # support_map_vectorized_direct_indirect_weighted implements our common approach to looking for evidence of direct and indirect dominance
-        # I'm just using an annonymous function because the helper function V_count_vectorized expects a function with one argument
-        map_func = lambda linked: pyrankability.construct.support_map_vectorized_direct_indirect_weighted(linked,direct_thres=direct_thres,spread_thres=spread_thres,weight_indirect=weight_indirect)
-        Ds[year][frac] = pyrankability.construct.V_count_vectorized(game_df_sample,map_func).loc[madness_teams,madness_teams]
-    pass
+    upper = int(len(game_df)*fraction)
+    game_df_sample = game_df.iloc[:upper,:]
+    # support_map_vectorized_direct_indirect_weighted implements our common approach to looking for evidence of direct and indirect dominance
+    # I'm just using an annonymous function because the helper function V_count_vectorized expects a function with one argument
+    map_func = lambda linked: pyrankability.construct.support_map_vectorized_direct_indirect_weighted(linked,direct_thres=direct_thres,spread_thres=spread_thres,weight_indirect=weight_indirect)
+    return pyrankability.construct.V_count_vectorized(game_df_sample,map_func).loc[madness_teams,madness_teams]
+
 
 feature_list = []
 
