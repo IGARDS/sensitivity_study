@@ -34,7 +34,7 @@ def read_raw_pairwise(filepath, col_mapping):
     # returns sorted dataframe of pairwise comparisons
     
     df = pd.read_csv(filepath)
-    print(df)
+    # print(df)
     
     # Rename columns provided
     for standard_col in col_mapping.keys():
