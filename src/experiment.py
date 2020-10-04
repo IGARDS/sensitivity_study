@@ -180,7 +180,7 @@ def eval_models(features, targets):
     return score_list
 
 
-def main(file):
+def main():
     col_mapping = {
         "team1_name":"team1_name",
         "team1_score":"team1_score",
@@ -210,4 +210,4 @@ def main(file):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1])
+    main()
