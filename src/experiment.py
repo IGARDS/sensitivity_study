@@ -20,6 +20,7 @@ home = str(Path.home())
 import sys
 sys.path.insert(0,"%s/rankability_toolbox_dev"%home)
 import pyrankability
+from pyrankability.construct import *
 sys.path.insert(0,"%s/sensitivity_study/src"%home)
 from sensitivity_tests import *
 from utilities import *
@@ -51,14 +52,20 @@ def construct_support_matrix(pairwise_df,
     # returns support matrix for the relevant teams
     #    (full matrix cut down to madness_teams for example)
     
-    madness_teams = np.unique(list(pairwise_df.team1_name.loc[pairwise_df.team1_madness == 1]) + list(pairwise_df.team2_name.loc[pairwise_df.team2_madness == 1]))
+    madness_teams = np.unique(list(pairwise_df.team1_name.loc[pairwise_df.team1_madness == 1])
+                              + list(pairwise_df.team2_name.loc[pairwise_df.team2_madness == 1]))
     game_list = list(pairwise_df.index)
     
     upper = int(len(pairwise_df)*fraction)
     game_df_sample = pairwise_df.iloc[:upper,:]
 
-    map_func = lambda linked: pyrankability.construct.support_map_vectorized_direct_indirect_weighted(linked,direct_thres=direct_thres,spread_thres=spread_thres,weight_indirect=weight_indirect)
-    return pyrankability.construct.V_count_vectorized(game_df_sample,map_func).loc[madness_teams,madness_teams]
+    map_func = lambda linked:
+        support_map_vectorized_direct_indirect_weighted(
+                                                        linked,
+                                                        direct_thres=direct_thres,
+                                                        spread_thres=spread_thres,
+                                                        weight_indirect=weight_indirect)
+    return V_count_vectorized(game_df_sample,map_func).loc[madness_teams,madness_teams]
 
 
 feature_creation_list = [
@@ -79,18 +86,19 @@ feature_creation_list = [
     'Pair'
 ]
 
+
 def get_features_from_support(support):
     # get all of the features from the support (including solving LOP for details first)
     # returns a pd.Series of all features for *this* single support matrix
     # the support matrix for a pair for a given year
 
     # eigens of the support matrix
-    vals, vecs = np.linalg.eig(support.fillna(0.0).to_numpy())
+    vals, vecs = np.linalg.eig(support.fillna(0.0).values)
     determinant = np.prod(vals)
     trace = np.sum(vals)
     max_eigenval = np.real(np.max(vals))
     min_eigenval = np.real(np.min(vals))
-    dsGraph = nx.from_numpy_matrix(support.fillna(0.0).to_numpy())
+    dsGraph = nx.from_numpy_matrix(support.fillna(0.0).values)
     
     rresults = rankability_results.iloc[c,:]
     k = rresults['k']
@@ -101,14 +109,10 @@ def get_features_from_support(support):
     xstar = x.iloc[order,:].iloc[:,order]
     xstar.loc[:,:] = pyrankability.common.threshold_x(xstar.values)
     
-    print(np.linalg.norm(xstar.values, "fro"), 'fro')
     vals, vecs = np.linalg.eig(xstar.to_numpy())
     det_xstar = np.real(np.prod(vals))
-    print("det", det_xstar)
     max_eigenval_xstar = np.real(np.max(vals))
     min_eigenval_xstar = np.real(np.min(vals))
-    print(max_eigenval_xstar)
-    print(min_eigenval_xstar)
     
     inxs = np.triu_indices(len(xstar),k=1)
     xstar_upper = xstar.values[inxs[0],inxs[1]]
@@ -140,15 +144,18 @@ def get_target_stability(support1, support1, rankingMethod, corrMethod):
     # Measure the correlation between rankings of support1 and support2
     # Maybe at this point consider checkpointing the rankings as well
     # return the correlation (single float)
-    ranking1 = rankingMethod().rank(support1.fillna(0).values)
-    ranking2 = rankingMethod().rank(support2.fillna(0).values)
+    rankingMethod = rankingMethod()
+    ranking1 = rankingMethod.rank(support1.fillna(0).values)
+    ranking2 = rankingMethod.rank(support2.fillna(0).values)
     # rankings[year].append((ranking1,ranking2))
     # ranking1, ranking2 = rankings[year][i]
-    tau = kendall_tau(ranking1,ranking2)
-    return tau
+    corr = corrMethod(ranking1,ranking2)
+    return corr
+
 
 # iterate over this and call eval_models
 model_list = [{"model":DummyRegressor(), "param_grid": {}}]
+
 
 def eval_models(features, targets):
     # Train and evaluate different models on this regression task
