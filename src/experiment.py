@@ -6,10 +6,9 @@ import networkx as nx
 import sklearn.linear_model as skl_lm
 from scipy.stats import pearsonr
 from scipy.stats import skew
-from sklearn.model_selection import cross_val_score,LeaveOneOut
+from sklearn.model_selection import cross_val_score, LeaveOneOut, GridSearchCV
 from sklearn.svm import SVR
 from sklearn.dummy import DummyRegressor
-from sklearn.model_selection import GridSearchCV
 from sklearn.linear_model import LinearRegression
 from itertools import chain, combinations
 from tqdm import tqdm
@@ -77,8 +76,7 @@ def construct_support_matrix(pairwise_df,
     game_df_sample = pairwise_df.iloc[:upper,:]
 
     map_func = lambda linked:
-        support_map_vectorized_direct_indirect_weighted(
-                                                        linked,
+        support_map_vectorized_direct_indirect_weighted(linked,
                                                         direct_thres=direct_thres,
                                                         spread_thres=spread_thres,
                                                         weight_indirect=weight_indirect)
