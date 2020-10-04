@@ -87,10 +87,8 @@ def construct_support_matrix(pairwise_df,
 
 
 feature_creation_list = [
-    'Year',
-    '# X* frac',
+    ,
     'k',
-    '# X* frac top 40',
     'kendall_w',
     'p_lowerbound',
     'max_L2_dist',
@@ -98,10 +96,7 @@ feature_creation_list = [
     'min_tau',
     'mean_tau',
     'max_eigenval',
-    'min_eigenval',
-    'max_eigenval_xstar',
-    'min_eigenval_xstar',
-    'Pair'
+    'min_eigenval'
 ]
 
 
@@ -109,53 +104,42 @@ def get_features_from_support(support):
     # get all of the features from the support (including solving LOP for details first)
     # returns a pd.Series of all features for *this* single support matrix
     # the support matrix for a pair for a given year
-
-    # eigens of the support matrix
-    vals, vecs = np.linalg.eig(support.fillna(0.0).values)
-    determinant = np.prod(vals)
-    trace = np.sum(vals)
-    max_eigenval = np.real(np.max(vals))
-    min_eigenval = np.real(np.min(vals))
-    dsGraph = nx.from_numpy_matrix(support.fillna(0.0).values)
+    features = {}
+    support_np = support.fillna(0.0).values
     
-    rresults = rankability_results.iloc[c,:]
-    k = rresults['k']
-    details = df_details[c]
+    # eigens of the support matrix
+    eig_vals, _ = np.linalg.eig(support_np)
+    features['max_eigenval_support'] = np.real(np.max(eig_vals))
+    features['min_eigenval_support'] = np.real(np.min(eig_vals))
+    
+    features["k"], details = pyrankability.rank.solve(support_np,
+                                                      method='lop',
+                                                      num_random_restarts=n_restarts,
+                                                      lazy=False,
+                                                      cont=True)
+    
+    for key,val in get_P_stats(details["P"]):
+        if key in features:
+            raise ValueError("Feature Column collision! Check feature names!")
+        else:
+            features[key] = val
+    
     x = pd.DataFrame(details['x'],index=support.index,columns=support.columns)
     r = x.sum(axis=0)
     order = np.argsort(r)
     xstar = x.iloc[order,:].iloc[:,order]
     xstar.loc[:,:] = pyrankability.common.threshold_x(xstar.values)
     
-    vals, vecs = np.linalg.eig(xstar.to_numpy())
-    det_xstar = np.real(np.prod(vals))
-    max_eigenval_xstar = np.real(np.max(vals))
-    min_eigenval_xstar = np.real(np.min(vals))
-    
-    inxs = np.triu_indices(len(xstar),k=1)
-    xstar_upper = xstar.values[inxs[0],inxs[1]]
-    nfrac_upper = sum((xstar_upper > 0) & (xstar_upper < 1))
+    # eigens of the X* matrix
+    eig_vals, _ = np.linalg.eig(xstar.to_numpy())
+    features['max_eigenval_xstar'] = np.real(np.max(eig_vals))
+    features['min_eigenval_xstar'] = np.real(np.min(eig_vals))
+
     flat_frac = ((xstar > 0) & (xstar < 1)).sum(axis=0)
-    nfrac_top_40 = flat_frac.iloc[:40].sum()
-    entry_data = [
-        year,
-        nfrac_upper*2,
-        k,
-        nfrac_top_40,
-        rresults["kendall_w"],
-        rresults["p_lowerbound"],
-        rresults["max_L2_dist"],
-        rresults["mean_L2_dist"],
-        rresults["min_tau"],
-        rresults["mean_tau"],
-        max_eigenval, 
-        min_eigenval,
-        max_eigenval_xstar,
-        min_eigenval_xstar,
-        pair
-    ]
-    entry = pd.Series(entry_data,feature_creation_list)
-    return entry
+    features['# X* frac'] = flat_frac.sum()
+    features['# X* frac top 40'] = flat_frac.iloc[:40].sum()
+
+    return pd.Series(features)
 
 
 def get_target_stability(support1, support1, rankingMethod, corrMethod):
