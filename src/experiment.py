@@ -53,18 +53,91 @@ def construct_support_matrix(pairwise_df,
     return pyrankability.construct.V_count_vectorized(game_df_sample,map_func).loc[madness_teams,madness_teams]
 
 
-feature_list = []
+feature_creation_list = [
+    'Year',
+    '# X* frac',
+    'k',
+    '# X* frac top 40',
+    'kendall_w',
+    'p_lowerbound',
+    'max_L2_dist',
+    'mean_L2_dist',
+    'min_tau',
+    'mean_tau',
+    'max_eigenval',
+    'min_eigenval',
+    'max_eigenval_xstar',
+    'min_eigenval_xstar',
+    'Pair'
+]
 
 def get_features_from_support(support):
     # get all of the features from the support (including solving LOP for details first)
     # returns a pd.Series of all features for *this* single support matrix
-    pass
+    # the support matrix for a pair for a given year
 
-def get_target_stability(support1, support2, rankingMethod, corrMethod):
+    # eigens of the support matrix
+    vals, vecs = np.linalg.eig(support.fillna(0.0).to_numpy())
+    determinant = np.prod(vals)
+    trace = np.sum(vals)
+    max_eigenval = np.real(np.max(vals))
+    min_eigenval = np.real(np.min(vals))
+    dsGraph = nx.from_numpy_matrix(support.fillna(0.0).to_numpy())
+    
+    rresults = rankability_results.iloc[c,:]
+    k = rresults['k']
+    details = df_details[c]
+    x = pd.DataFrame(details['x'],index=support.index,columns=support.columns)
+    r = x.sum(axis=0)
+    order = np.argsort(r)
+    xstar = x.iloc[order,:].iloc[:,order]
+    xstar.loc[:,:] = pyrankability.common.threshold_x(xstar.values)
+    
+    print(np.linalg.norm(xstar.values, "fro"), 'fro')
+    vals, vecs = np.linalg.eig(xstar.to_numpy())
+    det_xstar = np.real(np.prod(vals))
+    print("det", det_xstar)
+    max_eigenval_xstar = np.real(np.max(vals))
+    min_eigenval_xstar = np.real(np.min(vals))
+    print(max_eigenval_xstar)
+    print(min_eigenval_xstar)
+    
+    inxs = np.triu_indices(len(xstar),k=1)
+    xstar_upper = xstar.values[inxs[0],inxs[1]]
+    nfrac_upper = sum((xstar_upper > 0) & (xstar_upper < 1))
+    flat_frac = ((xstar > 0) & (xstar < 1)).sum(axis=0)
+    nfrac_top_40 = flat_frac.iloc[:40].sum()
+    entry_data = [
+        year,
+        nfrac_upper*2,
+        k,
+        nfrac_top_40,
+        rresults["kendall_w"],
+        rresults["p_lowerbound"],
+        rresults["max_L2_dist"],
+        rresults["mean_L2_dist"],
+        rresults["min_tau"],
+        rresults["mean_tau"],
+        max_eigenval, 
+        min_eigenval,
+        max_eigenval_xstar,
+        min_eigenval_xstar,
+        pair
+    ]
+    entry = pd.Series(entry_data,feature_creation_list)
+    return entry
+
+def get_target_stability(support1, support1, rankingMethod, corrMethod):
     # Measure the correlation between rankings of support1 and support2
     # Maybe at this point consider checkpointing the rankings as well
     # return the correlation (single float)
-    pass
+    ranking1 = rankingMethod().rank(support1.fillna(0).values)
+    ranking2 = rankingMethod().rank(support2.fillna(0).values)
+    # rankings[year].append((ranking1,ranking2))
+    # ranking1, ranking2 = rankings[year][i]
+    tau = kendall_tau(ranking1,ranking2)
+    return tau
+
 
 model_list = [{"model":DummyRegressor(), "param_grid": {}}]
 
