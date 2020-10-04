@@ -3,8 +3,16 @@ import os
 import pandas as pd
 import numpy as np
 import networkx as nx
+import sklearn.linear_model as skl_lm
 from scipy.stats import pearsonr
 from scipy.stats import skew
+from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import LeaveOneOut
+from sklearn.svm import SVR
+from sklearn.dummy import DummyRegressor
+from sklearn.model_selection import GridSearchCV
+from sklearn.linear_model import LinearRegression
+from itertools import chain, combinations
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 from pathlib import Path
@@ -127,6 +135,7 @@ def get_features_from_support(support):
     entry = pd.Series(entry_data,feature_creation_list)
     return entry
 
+
 def get_target_stability(support1, support1, rankingMethod, corrMethod):
     # Measure the correlation between rankings of support1 and support2
     # Maybe at this point consider checkpointing the rankings as well
@@ -138,11 +147,24 @@ def get_target_stability(support1, support1, rankingMethod, corrMethod):
     tau = kendall_tau(ranking1,ranking2)
     return tau
 
-
+# iterate over this and call eval_models
 model_list = [{"model":DummyRegressor(), "param_grid": {}}]
 
-def evaluate_models(features, targets):
+def eval_models(features, targets):
     # Train and evaluate different models on this regression task
     # Return a list of best performances per model from model_list
     # [{"modelname": "DummyRegressor", "Performance":PerformanceObject}]
-    pass
+    exhaustive_feat_select = list(chain.from_iterable(combinations(list(range(len(features.columns))), r) for r in range(len(features.columns))))
+    # only 10 feature subsets (out of 2^n) for debug purposes
+    best_score = np.Inf
+    best_features = None
+    for ps in tqdm(exhaustive_feat_select, ascii=True):
+        features = features.iloc[:, list(ps)]
+        grid = GridSearchCV(model,param_grid,refit=True,verbose=0, cv=3, iid=True, n_jobs=-1)
+        exhaustive[ps] = np.mean(np.abs(cross_val_score(grid, features, y, scoring="neg_mean_absolute_error", cv=3, n_jobs=1)))
+        if exhaustive[ps] < best_score:
+            best_score = exhaustive[ps]
+            best_features = ps
+    
+    # print(scores)
+    return ({"MAE": best_score, "best_feature_subset": [features.columns[f] for f in best_features]}, exhaustive)
