@@ -184,13 +184,16 @@ def main(file):
     games = {year: read_raw_pairwise("../data/MarchMadnessDataFrames/march_madness_%s.csv"%year, col_mapping) for year in years}
     data = []
     support_matricies = {}
+    feature_df_list = []
     for year in tqdm(games.keys()):
         support_matricies[year] = {}
         for frac in fracs:
             support_matricies[year][frac] = construct_support_matrix(games[year], fraction, direct_thres = 2, spread_thres = 2, weight_indirect = 0.5)
+            feature_df_list.append(get_features_from_support(support_matricies[year][frac]))
         for percent_contained_pair in pairs:
             data.append(get_target_stability(support_matricies[year][percent_contained_pair[0]], support_matricies[year][percent_contained_pair[1]]))
-    results = pd.Series(data,index=results.columns,name=year)
+    features = pd.DataFrame(feature_df_list)
+    targets = pd.Series(data,index=results.columns,name=year)
     # good spot for a checkpoint
     
 
