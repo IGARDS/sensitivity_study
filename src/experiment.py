@@ -190,7 +190,8 @@ def main():
     }
     fracs = [.75, 1.0]
     pairs = [(.5, .75), (.75, 1.0)]
-    years = ["2002","2003","2004","2005","2006","2007","2008","2009","2010","2011","2012","2013","2014","2015","2016","2017","2018"]
+    years = ["2002", "2003", "2004", "2005", "2006", "2007", "2008", "2009",
+             "2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018"]
     games = {year: read_raw_pairwise("../data/MarchMadnessDataFrames/march_madness_%s.csv"%year, col_mapping) for year in years}
     data = []
     support_matricies = {}
