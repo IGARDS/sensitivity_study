@@ -23,7 +23,13 @@ from utilities import *
 
 
 # Somehow we need to figure out how to checkpoint intermediate results
-standard_columns = ["team1_name", "team2_name", "team1_score", "team2_score", "date", "team1_madness", "team2_madness"]
+standard_columns = ["team1_name",
+                    "team2_name",
+                    "team1_score",
+                    "team2_score",
+                    "date",
+                    "team1_select",
+                    "team2_select"]
 
 # Function to read raw pairwise data into dataframe with standardized col names
 def read_raw_pairwise(filepath, col_mapping):
@@ -34,7 +40,6 @@ def read_raw_pairwise(filepath, col_mapping):
     # returns sorted dataframe of pairwise comparisons
     
     df = pd.read_csv(filepath)
-    # print(df)
     
     # Rename columns provided
     for standard_col in col_mapping.keys():
@@ -67,8 +72,8 @@ def construct_support_matrix(pairwise_df,
     # returns support matrix for the relevant teams
     #    (full matrix cut down to madness_teams for example)
     
-    madness_teams = np.unique(list(pairwise_df.team1_name.loc[pairwise_df.team1_madness == 1])
-                              + list(pairwise_df.team2_name.loc[pairwise_df.team2_madness == 1]))
+    madness_teams = np.unique(list(pairwise_df.team1_name.loc[pairwise_df.team1_select == 1])
+                              + list(pairwise_df.team2_name.loc[pairwise_df.team2_select == 1]))
     game_list = list(pairwise_df.index)
     
     upper = int(len(pairwise_df)*fraction)
@@ -179,6 +184,8 @@ def main():
         "team1_score":"team1_score",
         "team2_name":"team2_name",
         "team2_score":"team2_score",
+        "team1_select": "team1_madness",
+        "team2_select": "team2_madness",
         "date":"date"
     }
     fracs = [.75, 1.0]
