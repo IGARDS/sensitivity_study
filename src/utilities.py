@@ -7,6 +7,6 @@ def kendall_tau(r1, r2):
     return tau
 
 def spearman_r(r1, r2):
-    # Calculates the kendall tau between two ranking vectors
+    # Calculates the spearman r between two ranking vectors
     rho, _ = stats.spearmanr(np.argsort(r1), np.argsort(r2))
     return rho

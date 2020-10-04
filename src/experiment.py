@@ -77,9 +77,14 @@ def construct_support_matrix(pairwise_df,
     game_list = list(pairwise_df.index)
     
     upper = int(len(pairwise_df)*fraction)
-    game_df_sample = pairwise_df.iloc[:upper,:]
-    # multiline lambdas are not allowed
-    map_func = lambda linked: support_map_vectorized_direct_indirect_weighted(linked, direct_thres=direct_thres, spread_thres=spread_thres, weight_indirect=weight_indirect)
+    game_df_sample = pairwise_df.iloc[:upper,:].drop(["team1_select", "team2_select"], axis=1)
+
+    def map_func(linked):
+        return support_map_vectorized_direct_indirect_weighted(linked,
+                                                               direct_thres=direct_thres,
+                                                               spread_thres=spread_thres,
+                                                               weight_indirect=weight_indirect)
+    
     return V_count_vectorized(game_df_sample,map_func).loc[madness_teams,madness_teams]
 
 
@@ -181,9 +186,9 @@ def eval_models(features, targets):
 def main():
     col_mapping = {
         "team1_name":"team1_name",
-        "team1_score":"team1_score",
+        "team1_score":"points1",
         "team2_name":"team2_name",
-        "team2_score":"team2_score",
+        "team2_score":"points2",
         "team1_select": "team1_madness",
         "team2_select": "team2_madness",
         "date":"date"
@@ -192,7 +197,7 @@ def main():
     pairs = [(.5, .75), (.75, 1.0)]
     years = ["2002", "2003", "2004", "2005", "2006", "2007", "2008", "2009",
              "2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018"]
-    games = {year: read_raw_pairwise("../data/MarchMadnessDataFrames/march_madness_%s.csv"%year, col_mapping) for year in years}
+    games = {year: read_raw_pairwise("{}/sensitivity_study/data/MarchMadnessDataFrames/march_madness_{}.csv".format(home,year), col_mapping) for year in years}
     data = []
     support_matricies = {}
     feature_df_list = []
@@ -200,10 +205,16 @@ def main():
         support_matricies[year] = {}
         print(games[year])
         for frac in fracs:
-            support_matricies[year][frac] = construct_support_matrix(games[year], frac, direct_thres = 2, spread_thres = 2, weight_indirect = 0.5)
+            support_matricies[year][frac] = construct_support_matrix(games[year],
+                                                                     frac,
+                                                                     direct_thres=2,
+                                                                     spread_thres=2,
+                                                                     weight_indirect=0.5)
             feature_df_list.append(get_features_from_support(support_matricies[year][frac]))
         for percent_contained_pair in pairs:
-            data.append(get_target_stability(support_matricies[year][percent_contained_pair[0]], support_matricies[year][percent_contained_pair[1]]))
+            # This is missing some parameters
+            data.append(get_target_stability(support_matricies[year][percent_contained_pair[0]],
+                                             support_matricies[year][percent_contained_pair[1]]))
     # good spot for a checkpoint: support_matricies
     features = pd.DataFrame(feature_df_list)
     targets = pd.Series(data,index=results.columns,name=year)
