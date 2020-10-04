@@ -200,10 +200,12 @@ def main(file):
             feature_df_list.append(get_features_from_support(support_matricies[year][frac]))
         for percent_contained_pair in pairs:
             data.append(get_target_stability(support_matricies[year][percent_contained_pair[0]], support_matricies[year][percent_contained_pair[1]]))
+    # good spot for a checkpoint: support_matricies
     features = pd.DataFrame(feature_df_list)
     targets = pd.Series(data,index=results.columns,name=year)
-    # good spot for a checkpoint
-    
+    eval_models(features, targets)
+    # good spot for a checkpoint: features, targets
+
 
 if __name__ == "__main__":
     main(sys.argv[1])
