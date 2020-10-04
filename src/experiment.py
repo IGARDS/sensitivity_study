@@ -46,18 +46,9 @@ def construct_support_matrix(pairwise_df,
     madness_teams = np.unique(list(pairwise_df.team1_name.loc[pairwise_df.team1_madness == 1]) + list(pairwise_df.team2_name.loc[pairwise_df.team2_madness == 1]))
     game_list = list(pairwise_df.index)
     
-    game_df = pd.DataFrame({"team1_name":pairwise_df['team1_name'],
-                            "team1_score":pairwise_df['points1'],
-                            "team1_H_A_N": pairwise_df['H_A_N1'],
-                            "team2_name":pairwise_df['team2_name'],
-                            "team2_score":pairwise_df['points2'],
-                            "team2_H_A_N": pairwise_df['H_A_N1'],
-                            "date": pairwise_df['date']
-                           }).sort_values(by='date').drop('date',axis=1)
-    upper = int(len(game_df)*fraction)
-    game_df_sample = game_df.iloc[:upper,:]
-    # support_map_vectorized_direct_indirect_weighted implements our common approach to looking for evidence of direct and indirect dominance
-    # I'm just using an annonymous function because the helper function V_count_vectorized expects a function with one argument
+    upper = int(len(pairwise_df)*fraction)
+    game_df_sample = pairwise_df.iloc[:upper,:]
+
     map_func = lambda linked: pyrankability.construct.support_map_vectorized_direct_indirect_weighted(linked,direct_thres=direct_thres,spread_thres=spread_thres,weight_indirect=weight_indirect)
     return pyrankability.construct.V_count_vectorized(game_df_sample,map_func).loc[madness_teams,madness_teams]
 
