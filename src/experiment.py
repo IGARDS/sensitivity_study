@@ -26,8 +26,6 @@ from utilities import *
 from base import *
 
 
-
-
 # Somehow we need to figure out how to checkpoint intermediate results
 
 # Function to read raw pairwise data into dataframe with standardized col names
