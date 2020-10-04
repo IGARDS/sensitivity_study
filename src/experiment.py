@@ -26,7 +26,7 @@ from base import *
 
 
 # Somehow we need to figure out how to checkpoint intermediate results
-standard_columns = ["team1_name", "team2_name", "team1_score", "team2_score", "date"]
+standard_columns = ["team1_name", "team2_name", "team1_score", "team2_score", "date", "team1_madness", "team2_madness"]
 
 # Function to read raw pairwise data into dataframe with standardized col names
 def read_raw_pairwise(filepath, col_mapping):
@@ -37,6 +37,7 @@ def read_raw_pairwise(filepath, col_mapping):
     # returns sorted dataframe of pairwise comparisons
     
     df = pd.read_csv(filepath)
+    print(df)
     
     # Rename columns provided
     for standard_col in col_mapping.keys():
@@ -192,6 +193,7 @@ def main():
     feature_df_list = []
     for year in tqdm(games.keys()):
         support_matricies[year] = {}
+        print(games[year])
         for frac in fracs:
             support_matricies[year][frac] = construct_support_matrix(games[year], frac, direct_thres = 2, spread_thres = 2, weight_indirect = 0.5)
             feature_df_list.append(get_features_from_support(support_matricies[year][frac]))
