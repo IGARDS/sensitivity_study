@@ -86,20 +86,6 @@ def construct_support_matrix(pairwise_df,
     return V_count_vectorized(game_df_sample,map_func).loc[madness_teams,madness_teams]
 
 
-feature_creation_list = [
-    ,
-    'k',
-    'kendall_w',
-    'p_lowerbound',
-    'max_L2_dist',
-    'mean_L2_dist',
-    'min_tau',
-    'mean_tau',
-    'max_eigenval',
-    'min_eigenval'
-]
-
-
 def get_features_from_support(support):
     # get all of the features from the support (including solving LOP for details first)
     # returns a pd.Series of all features for *this* single support matrix
