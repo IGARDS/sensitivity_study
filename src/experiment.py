@@ -26,6 +26,9 @@ from sensitivity_tests import *
 from utilities import *
 from base import *
 
+
+
+
 # Somehow we need to figure out how to checkpoint intermediate results
 
 standard_cols = ["team1_name", "team2_name", "team1_score", "team2_score", "date"]
@@ -192,3 +195,18 @@ def eval_models(features, targets):
             best_features = ps
     
     return ({"MAE": best_score, "best_feature_subset": [features.columns[f] for f in best_features]}, exhaustive)
+
+
+def main(file):
+    col_mapping = {
+        "team1_name":"team1_name",
+        "team1_score":"team1_score",
+        "team2_name":"team2_name",
+        "team2_score":"team2_score",
+        "date":"date"
+    }
+    read_raw_pairwise(file, col_mapping)
+    
+
+if __name__ == "__main__":
+    main(sys.argv[1])
