@@ -26,6 +26,8 @@ from utilities import *
 from base import *
 
 
+
+
 # Somehow we need to figure out how to checkpoint intermediate results
 
 # Function to read raw pairwise data into dataframe with standardized col names
@@ -168,3 +170,18 @@ def eval_models(features, targets):
     
     # print(scores)
     return ({"MAE": best_score, "best_feature_subset": [features.columns[f] for f in best_features]}, exhaustive)
+
+
+def main(file):
+    col_mapping = {
+        "team1_name":"team1_name",
+        "team1_score":"team1_score",
+        "team2_name":"team2_name",
+        "team2_score":"team2_score",
+        "date":"date"
+    }
+    read_raw_pairwise(file, col_mapping)
+    
+
+if __name__ == "__main__":
+    main(sys.argv[1])
