@@ -180,10 +180,10 @@ def eval_models(features, targets):
     # Return a list of best performances per model from model_list
     # [{"modelname": "DummyRegressor", "Performance":PerformanceObject}]
     score_list = []
+    exhaustive_feat_select = list(chain.from_iterable(combinations(list(range(len(features.columns))), r) for r in range(len(features.columns))))
     for model_dict in model_list:
         model = model_dict["model"]
         param_grid = model_dict["param_grid"]
-        exhaustive_feat_select = list(chain.from_iterable(combinations(list(range(len(features.columns))), r) for r in range(len(features.columns))))
         # only 10 feature subsets (out of 2^n) for debug purposes
         best_score = np.Inf
         best_features = None
@@ -208,7 +208,20 @@ def main(file):
         "team2_score":"team2_score",
         "date":"date"
     }
-    read_raw_pairwise(file, col_mapping)
+    fracs = [.75, 1.0]
+    pairs = [(.5, .75), (.75, 1.0)]
+    years = ["2002","2003","2004","2005","2006","2007","2008","2009","2010","2011","2012","2013","2014","2015","2016","2017","2018"]
+    games = {year: read_raw_pairwise("../data/MarchMadnessDataFrames/march_madness_%s.csv"%year, col_mapping) for year in years}
+    data = []
+    support_matricies = {}
+    for year in tqdm(games.keys()):
+        support_matricies[year] = {}
+        for frac in fracs:
+            support_matricies[year][frac] = construct_support_matrix(games[year], fraction, direct_thres = 2, spread_thres = 2, weight_indirect = 0.5)
+        for percent_contained_pair in pairs:
+            data.append(get_target_stability(support_matricies[year][percent_contained_pair[0]], support_matricies[year][percent_contained_pair[1]]))
+    results = pd.Series(data,index=results.columns,name=year)
+    # good spot for a checkpoint
     
 
 if __name__ == "__main__":
