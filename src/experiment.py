@@ -39,7 +39,8 @@ def read_raw_pairwise(filepath, col_mapping):
     df = pd.read_csv(filepath)
     
     # Rename columns provided
-    for standard_col, custom_col in col_mapping:
+    for standard_col in col_mapping.keys():
+        custom_col = col_mapping[standard_col]
         if standard_col != custom_col:
             df[standard_col] = df[custom_col]
             df.drop(custom_col, axis=1, inplace=True)
@@ -74,12 +75,8 @@ def construct_support_matrix(pairwise_df,
     
     upper = int(len(pairwise_df)*fraction)
     game_df_sample = pairwise_df.iloc[:upper,:]
-
-    map_func = lambda linked:
-        support_map_vectorized_direct_indirect_weighted(linked,
-                                                        direct_thres=direct_thres,
-                                                        spread_thres=spread_thres,
-                                                        weight_indirect=weight_indirect)
+    # multiline lambdas are not allowed
+    map_func = lambda linked: support_map_vectorized_direct_indirect_weighted(linked, direct_thres=direct_thres, spread_thres=spread_thres, weight_indirect=weight_indirect)
     return V_count_vectorized(game_df_sample,map_func).loc[madness_teams,madness_teams]
 
 
@@ -125,7 +122,7 @@ def get_features_from_support(support):
     return pd.Series(features)
 
 
-def get_target_stability(support1, support1, rankingMethod, corrMethod):
+def get_target_stability(support1, support2, rankingMethod, corrMethod):
     # Measure the correlation between rankings of support1 and support2
     # Maybe at this point consider checkpointing the rankings as well
     # return the correlation (single float)
@@ -196,7 +193,7 @@ def main():
     for year in tqdm(games.keys()):
         support_matricies[year] = {}
         for frac in fracs:
-            support_matricies[year][frac] = construct_support_matrix(games[year], fraction, direct_thres = 2, spread_thres = 2, weight_indirect = 0.5)
+            support_matricies[year][frac] = construct_support_matrix(games[year], frac, direct_thres = 2, spread_thres = 2, weight_indirect = 0.5)
             feature_df_list.append(get_features_from_support(support_matricies[year][frac]))
         for percent_contained_pair in pairs:
             data.append(get_target_stability(support_matricies[year][percent_contained_pair[0]], support_matricies[year][percent_contained_pair[1]]))
