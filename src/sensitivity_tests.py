@@ -3,9 +3,12 @@ import math
 import random
 import sys
 import itertools
-sys.path = list(filter(lambda a: a != '~/rankability_toolbox_dev', sys.path))
-#sys.path.remove("~/rankability_toolbox")
-sys.path.append("~/rankability_toolbox_dev")
+from pathlib import Path
+home = str(Path.home())
+import sys
+rankability_path = "%s/rankability_toolbox_dev"%home
+if rankability_path not in sys.path:
+    sys.path.insert(0,rankability_path)
 import pyrankability
 from pyrankability.rank import solve
 from pyrankability.search import solve_pair_min_tau
