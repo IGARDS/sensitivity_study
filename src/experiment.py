@@ -81,14 +81,18 @@ def construct_support_matrix(pairwise_df,
     
     upper = int(len(pairwise_df)*fraction)
     game_df_sample = pairwise_df.iloc[:upper,:].drop(["team1_select", "team2_select"], axis=1)
+    # print(game_df_sample)
+    game_df_sample.reset_index(drop=True, inplace=True)
 
     def map_func(linked):
         return support_map_vectorized_direct_indirect_weighted(linked,
                                                                direct_thres=direct_thres,
                                                                spread_thres=spread_thres,
                                                                weight_indirect=weight_indirect)
-    
-    return V_count_vectorized(game_df_sample,map_func).loc[madness_teams,madness_teams]
+    v = V_count_vectorized(game_df_sample,map_func)
+    # print("v =======", v)
+    # print(madness_teams)
+    return v.loc[madness_teams, madness_teams]
 
 
 def get_features_from_support(support, n_restarts):
