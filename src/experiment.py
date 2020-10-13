@@ -75,20 +75,22 @@ def construct_support_matrix(pairwise_df,
     # returns support matrix for the relevant teams
     #    (full matrix cut down to madness_teams for example)
     
-    madness_teams = np.unique(list(pairwise_df.team1_name.loc[pairwise_df.team1_select == 1])
+    selected_teams = np.unique(list(pairwise_df.team1_name.loc[pairwise_df.team1_select == 1])
                               + list(pairwise_df.team2_name.loc[pairwise_df.team2_select == 1]))
     game_list = list(pairwise_df.index)
     
     upper = int(len(pairwise_df)*fraction)
     game_df_sample = pairwise_df.iloc[:upper,:].drop(["team1_select", "team2_select"], axis=1)
+    # print(game_df_sample)
+    game_df_sample.reset_index(drop=True, inplace=True)
 
     def map_func(linked):
         return support_map_vectorized_direct_indirect_weighted(linked,
                                                                direct_thres=direct_thres,
                                                                spread_thres=spread_thres,
                                                                weight_indirect=weight_indirect)
-    
-    return V_count_vectorized(game_df_sample,map_func).loc[madness_teams,madness_teams]
+    v = V_count_vectorized(game_df_sample,map_func)
+    return v.reindex(columns=selected_teams).reindex(index=selected_teams).fillna(0)
 
 
 def get_features_from_support(support, n_restarts):
