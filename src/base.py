@@ -38,6 +38,7 @@ def read_data(teams_file,games_file,madness_teams_file):
     games_2014.reset_index()
     for selection_sunday in selectionSundayList:
         games = games_2014.loc[games_2014["date"] <= pd.to_datetime(selection_sunday,format="%m/%d/%Y")-d]
+        remaining_games = games_2014.loc[games_2014["date"] > pd.to_datetime(selection_sunday,format="%m/%d/%Y")-d]
         if len(games) > 0:
             break
-    return games
+    return games,remaining_games
