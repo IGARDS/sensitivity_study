@@ -1,3 +1,7 @@
+## massey
+import numpy as np
+from math import ceil 
+
 year='2002'
 madness_teams = np.unique(list(games[year].team1_name.loc[games[year].team1_madness == 1]) + list(games[year].team2_name.loc[games[year].team2_madness == 1]))
 game_list = list(games[year].index)
@@ -18,9 +22,7 @@ colleyMatrix_test,b_test = pyrankability.construct.map_vectorized(game_df_sample
 map_func = lambda linked: pyrankability.construct.massey_matrices(linked,direct_thres=0,spread_thres=0,weight_indirect=0)
 masseyMatrix_test,massey_b_test = pyrankability.construct.map_vectorized(game_df_sample,map_func)
 
-## massey
-import numpy as np
-from math import ceil 
+
 
 teams = pd.Series(list(game_df_sample.team1_name)+list(game_df_sample.team2_name)).unique()
 
